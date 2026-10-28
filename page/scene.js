@@ -464,21 +464,10 @@
         } })
         if (!dk.south) out.push({ k: this.depth(cx, cy + 0.4), fn: () => S.box(cx - 0.28, cy + 0.22, 0.36, 0.56, 0.1, 0.5, "#6b7280") })
       }
-      // the sofas, piece by piece: a long backrest drawn as one piece would
-      // be ordered by its far end and so cover whoever sits at its near end
-      for (let i = 0; i < 5; i++) {
-        const y = 4.4 + i * 0.88
-        add(0.35, y, 0.4, 0.88, () => S.box(0.35, y, 0, 0.4, 0.88, 0.95, "#d99a1e"))
-        add(0.7, y, 0.8, 0.88, () => S.box(0.7, y, 0, 0.8, 0.88, 0.42, "#f2b630"))
-      }
-      add(0.7, 4.1, 0.8, 0.3, () => S.box(0.7, 4.1, 0, 0.8, 0.3, 0.7, "#d99a1e"))
-      add(0.7, 8.8, 0.8, 0.3, () => S.box(0.7, 8.8, 0, 0.8, 0.3, 0.7, "#d99a1e"))
-      for (let i = 0; i < 2; i++) {
-        const x = 2.5 + i * 1.2
-        add(x, 11.35, 1.2, 0.35, () => S.box(x, 11.35, 0, 1.2, 0.35, 0.95, "#d99a1e"))
-        add(x, 10.55, 1.2, 0.8, () => S.box(x, 10.55, 0, 1.2, 0.8, 0.42, "#f2b630"))
-      }
-      add(2.5, 10.55, 0.12, 1.15, () => S.box(2.5, 10.55, 0, 0.12, 1.15, 0.7, "#d99a1e"))
+      // A sofa and its seated occupants are one compositing group. Sorting
+      // cushions and people independently lets the next cushion/armrest
+      // paint over a neighbour's torso, even after splitting the backrest.
+      out.push(this.sofaLayer(false), this.sofaLayer(true))
 
       // the holo table with its planet
       add(6.3, 5.2, 1.6, 1.6, () => {
@@ -544,6 +533,31 @@
         S.onFront(14.1, 0.5, 0.8, 1.4, 0.35, 0.6, 0.1, 0.15, 0.9, 0.85, glow("#f59e0b"))
       })
       return out
+    }
+
+    sofaLayer(front) {
+      return { k: front ? this.depth(3.7, 11.7) : this.depth(1.1, 9.1), fn: () => {
+        if (front) {
+          for (let i = 0; i < 2; i++) {
+            const x = 2.5 + i * 1.2
+            this.box(x, 11.35, 0, 1.2, 0.35, 0.95, "#d99a1e")
+            this.box(x, 10.55, 0, 1.2, 0.8, 0.42, "#f2b630")
+          }
+          this.box(2.5, 10.55, 0, 0.12, 1.15, 0.7, "#d99a1e")
+        } else {
+          for (let i = 0; i < 5; i++) {
+            const y = 4.4 + i * 0.88
+            this.box(0.35, y, 0, 0.4, 0.88, 0.95, "#d99a1e")
+            this.box(0.7, y, 0, 0.8, 0.88, 0.42, "#f2b630")
+          }
+          this.box(0.7, 4.1, 0, 0.8, 0.3, 0.7, "#d99a1e")
+          this.box(0.7, 8.8, 0, 0.8, 0.3, 0.7, "#d99a1e")
+        }
+        const seated = [...this.workers.values()].filter(w =>
+          w.kind === "sofa" && !w.walking && (w.slot >= 5) === front)
+        seated.sort((a, b) => this.depth(a.x, a.y) - this.depth(b.x, b.y))
+        for (const w of seated) this.worker(w)
+      } }
     }
 
     // ---- workers -------------------------------------------------------
@@ -815,6 +829,7 @@
       // a person sitting is ordered by the seat's front edge, not their
       // middle, so their legs are over the cushion and not inside it
       for (const w of this.workers.values()) {
+        if (w.kind === "sofa" && !w.walking) continue // drawn in sofaLayer
         const sits = !w.walking && (w.kind === "seat" || w.kind === "sofa")
         items.push({ k: this.depth(w.x, w.y + (sits ? 0.34 : 0)) + 0.02, fn: () => this.worker(w) })
       }
