@@ -61,40 +61,56 @@ h1 { display: flex; align-items: center; gap: 10px; margin: 0; font-size: 21px; 
 .stage[hidden], .listview[hidden] { display: none; }
 canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .tags { position: absolute; inset: 0; pointer-events: none; }
-.tag { position: absolute; left: 0; top: 0; pointer-events: auto; display: inline-flex; align-items: center; gap: 6px; max-width: 220px; padding: 3px 10px 3px 4px; border: 0; border-radius: 999px; background: rgba(236, 238, 243, .92); color: #1f2937; font-size: 12px; font-weight: 600; box-shadow: 0 2px 8px rgba(0, 0, 0, .35); cursor: pointer; white-space: nowrap; will-change: transform; transition: background .15s; }
-.tag[hidden] { display: none; } /* the rule below would otherwise show it */
+.tag { position: absolute; left: 0; top: 0; pointer-events: auto; display: inline-flex; align-items: center; gap: 6px; max-width: 220px; padding: 3px 10px 3px 4px; border: 0; border-radius: 999px; background: rgba(236, 238, 243, .9); color: #1f2937; font: 600 12px/1.3 var(--font); box-shadow: 0 2px 8px rgba(0, 0, 0, .35); cursor: pointer; white-space: nowrap; will-change: transform; transition: background .12s, box-shadow .12s; }
+.tag[hidden] { display: none; } /* the rule above would otherwise show it */
 .tag .mark { flex: none; }
 .tag .tn { overflow: hidden; text-overflow: ellipsis; }
 .tag .td { flex: none; width: 6px; height: 6px; border-radius: 50%; }
-.tag:hover, .tag.on { background: #fff; z-index: 2; }
-.tag[data-status="waiting"] { box-shadow: 0 0 0 2px var(--wait), 0 2px 8px rgba(0, 0, 0, .35); }
-.tag[data-status="error"] { box-shadow: 0 0 0 2px var(--err), 0 2px 8px rgba(0, 0, 0, .35); }
-.mark { display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; overflow: hidden; vertical-align: middle; }
-.mark svg { width: 100%; height: 100%; }
-.mark.letter { color: #fff; font-weight: 800; border-radius: 5px; }
+.tag.hot { background: #fff; }
+.tag.on { background: #fff; box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--accent), 0 2px 8px rgba(0, 0, 0, .35); z-index: 3; }
+.tag[data-status="waiting"]:not(.on) { box-shadow: 0 0 0 2px var(--wait), 0 2px 8px rgba(0, 0, 0, .35); }
+.tag[data-status="error"]:not(.on) { box-shadow: 0 0 0 2px var(--err), 0 2px 8px rgba(0, 0, 0, .35); }
+.mark { display: inline-flex; align-items: center; justify-content: center; flex: none; overflow: hidden; vertical-align: middle; border-radius: 4px; }
+.mark img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.mark.letter { color: #fff; font-weight: 800; border-radius: 5px; line-height: 1; }
 
-.pop { position: absolute; left: 0; top: 0; z-index: 5; width: min(440px, calc(100% - 16px)); padding: 16px 20px 14px; background: #fff; color: #1f2937; border-radius: 14px; box-shadow: 0 18px 50px rgba(0, 0, 0, .45); font-size: 14px; }
+/* the panel: one agent, opened by a click, fixed at the stage's corner */
+.card { position: relative; }
+.pop { position: absolute; z-index: 20; right: 36px; top: 214px; width: min(400px, calc(100% - 72px)); max-height: calc(100% - 300px); overflow: auto; padding: 14px 18px 12px; background: #fff; color: #1f2937; border-radius: 14px; box-shadow: 0 18px 50px rgba(0, 0, 0, .4); font-size: 13.5px; animation: pop-in .14s ease-out; }
+.pop[hidden] { display: none; }
+@keyframes pop-in { from { opacity: 0; transform: translateY(-4px); } }
 .ph { display: flex; align-items: center; gap: 8px; }
-.pa { color: #4b5563; font-size: 13px; font-weight: 600; }
-.pt { font-size: 18px; font-weight: 700; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pw { color: #9ca3af; font-size: 13px; white-space: nowrap; }
-.pq { margin: 10px 0 8px; color: #374151; }
-.ps { display: flex; align-items: center; gap: 8px; margin: 8px 0; font-weight: 700; }
-.ps .pi { width: 18px; text-align: center; }
+.pmk { display: inline-flex; }
+.pa { color: #4b5563; font-size: 13px; font-weight: 600; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pw { color: #9ca3af; font-size: 12.5px; white-space: nowrap; }
+.px { border: 0; background: none; color: #9ca3af; font-size: 13px; cursor: pointer; padding: 2px 4px; border-radius: 6px; }
+.px:hover { color: #111827; background: #f3f4f6; }
+.pt { margin: 6px 0 2px; font-size: 17px; font-weight: 700; line-height: 1.35; overflow-wrap: anywhere; }
+.ps { display: flex; align-items: center; gap: 7px; margin: 8px 0; font-weight: 700; }
+.ps .pi { width: 16px; text-align: center; }
 .ps .pn { margin-left: auto; color: #9ca3af; font-weight: 500; font-size: 12px; }
 .ps.done { color: var(--done); } .ps.error { color: var(--err); } .ps.waiting { color: var(--wait); }
 .ps.thinking { color: var(--think); } .ps.executing { color: var(--exec); } .ps.replying { color: var(--reply); }
-.pstep { color: #4b5563; margin: 6px 0; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pr { color: #374151; margin: 8px 0; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-.phint { margin: 6px 0 0; padding: 7px 10px; border-radius: 8px; background: rgba(245, 158, 11, .12); color: #b45309; font-size: 12.5px; }
-.pf { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 10px; color: #9ca3af; font-size: 13px; }
+.pq { margin: 6px 0; color: #374151; overflow-wrap: anywhere; }
+.pstep { margin: 6px 0; padding: 6px 9px; border-radius: 8px; background: #f3f4f6; color: #374151; font: 12px/1.45 var(--mono); overflow-wrap: anywhere; }
+.perr { margin: 6px 0; padding: 6px 9px; border-radius: 8px; background: rgba(239, 68, 68, .09); color: #b91c1c; font-size: 12.5px; overflow-wrap: anywhere; }
+.pr { color: #374151; margin: 8px 0; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+.pf { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 8px; color: #9ca3af; font-size: 12.5px; }
 .pm { font-family: var(--mono); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pc { border: 0; background: none; color: #9ca3af; cursor: pointer; padding: 0; white-space: nowrap; }
+.pc { border: 0; background: none; color: #6b7280; cursor: pointer; padding: 0; white-space: nowrap; }
 .pc:hover { color: #1f2937; text-decoration: underline; }
-.pcopy { width: 60%; font: 12px var(--mono); padding: 3px 6px; border: 1px solid #e5e7eb; border-radius: 6px; }
+.pcopy { width: 100%; margin-top: 6px; font: 12px var(--mono); padding: 4px 6px; border: 1px solid #e5e7eb; border-radius: 6px; }
+.psrc { margin-top: 6px; color: #b0b5bd; font-size: 11.5px; }
 
-.empty { position: absolute; left: 50%; bottom: 22px; transform: translateX(-50%); max-width: 520px; padding: 10px 16px; border-radius: 12px; background: rgba(15, 23, 42, .78); color: #e2e8f0; text-align: center; font-size: 13px; backdrop-filter: blur(4px); }
-.wm { position: absolute; left: 14px; bottom: 10px; color: rgba(255, 255, 255, .25); font-size: 11px; }
+.empty { position: absolute; left: 50%; bottom: 22px; transform: translateX(-50%); max-width: 560px; padding: 10px 16px; border-radius: 12px; background: rgba(15, 23, 42, .78); color: #e2e8f0; text-align: center; font-size: 13px; backdrop-filter: blur(4px); }
+
+/* the live dot by the title: green while the host writes, grey once it stops */
+.live { display: inline-flex; align-items: center; gap: 5px; margin-left: 10px; padding: 2px 8px; border-radius: 999px; background: rgba(34, 163, 90, .1); color: var(--done); font-size: 11.5px; font-weight: 600; letter-spacing: 0; }
+.live i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; animation: live 2s infinite; }
+.live.stale { background: rgba(156, 163, 175, .15); color: var(--muted); }
+.live.stale i { animation: none; }
+@keyframes live { 50% { opacity: .35; } }
+tbody tr.on td { background: var(--accent-soft, rgba(79, 70, 229, .08)); }
 
 .listview { flex: 1; overflow: auto; border: 1px solid var(--line); border-radius: 14px; background: var(--bg); }
 table { width: 100%; border-collapse: collapse; }

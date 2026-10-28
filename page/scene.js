@@ -516,12 +516,22 @@
       else if (st === "waiting") z = Math.max(0, Math.sin(t * 5)) * 0.18
       const bw = 0.44, bd = 0.3
       const bx = x - bw / 2, by = y - bd / 2
-      // shadow
+      // shadow, and a ring when it is the one picked or pointed at
       const [shx, shy] = S.P(x, y, 0)
+      const ry = this.dim === "3d" ? 0.16 : 0.12
       S.g.fillStyle = "rgba(0,0,0,.28)"
       S.g.beginPath()
-      S.g.ellipse(shx, shy, S.s * 0.3, S.s * (this.dim === "3d" ? 0.16 : 0.12), 0, 0, Math.PI * 2)
+      S.g.ellipse(shx, shy, S.s * 0.3, S.s * ry, 0, 0, Math.PI * 2)
       S.g.fill()
+      if (this.selected === w.key || this.highlight === w.key) {
+        S.g.save()
+        S.g.strokeStyle = this.selected === w.key ? "rgba(255,255,255,.95)" : "rgba(255,255,255,.55)"
+        S.g.lineWidth = this.selected === w.key ? 2.5 : 1.5
+        S.g.beginPath()
+        S.g.ellipse(shx, shy, S.s * 0.46, S.s * ry * 1.5, 0, 0, Math.PI * 2)
+        S.g.stroke()
+        S.g.restore()
+      }
       let hip = 0.34
       if (sitting) {
         hip = 0.4

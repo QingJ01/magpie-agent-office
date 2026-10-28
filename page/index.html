@@ -6,6 +6,7 @@
 <title>Agent Office</title>
 <link rel="stylesheet" href="style.css">
 <script src="_magpie/bridge.js"></script>
+<script src="agents.js"></script>
 <script src="model.js"></script>
 <script src="icons.js"></script>
 <script src="scene.js"></script>
@@ -14,7 +15,7 @@
 <body>
 <main class="card" id="card">
   <header class="top">
-    <h1><span class="eyes" aria-hidden="true"><i></i><i></i></span><span data-t="title">What are my agents doing</span></h1>
+    <h1><span class="eyes" aria-hidden="true"><i></i><i></i></span><span data-t="title">What are my agents doing</span><span class="live" id="live"><i></i><span data-t="live">live</span></span></h1>
     <div class="counts" id="counts">
       <span class="count need"><i></i><span data-t="needYou">Need you</span> <b id="nNeed">0</b></span>
       <span class="count work"><i></i><span data-t="working">Working</span> <b id="nWork">0</b></span>
@@ -54,9 +55,7 @@
   <section class="stage" id="stage">
     <canvas id="office"></canvas>
     <div class="tags" id="tags"></div>
-    <div class="pop" id="pop" hidden></div>
     <div class="empty" id="empty" hidden></div>
-    <div class="wm" id="wm"></div>
   </section>
   <section class="listview" id="listview" hidden>
     <table>
@@ -65,6 +64,7 @@
     </table>
     <p class="empty-list" id="emptyList" hidden></p>
   </section>
+  <aside class="pop" id="pop" hidden></aside>
   <footer>
     <div class="legend" id="statusLegend"></div>
     <div class="legend brands" id="brandLegend"></div>

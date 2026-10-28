@@ -1,38 +1,71 @@
 {
   "name": "magpie-agent-office",
-  "version": "0.1.0",
-  "description": "我的 Agent 在干嘛：把经过 magpie 的每个 Agent 画成方块太空站办公室里的小人（3D/2D）或列表，思考中、执行中、回复中、等你回应、已完成、错误一目了然。What are my agents doing: every agent session as a worker in a voxel office (3D/2D) or a list, by status.",
+  "version": "0.2.0",
+  "description": "我的 Agent 在干嘛：实时读取 Claude Code、Codex、DeepSeek Harness、Gemini CLI 等 Agent 自己的会话文件，把每个会话画成方块太空站办公室里的小人（3D/2D）或列表。What are my agents doing, live, from each agent's own session files.",
   "type": "module",
   "files": [
     "page/index.html",
     "page/style.css",
+    "page/agents.js",
     "page/model.js",
     "page/icons.js",
     "page/scene.js",
     "page/app.js",
     "page/icon.svg",
+    "page/icons",
     "lib",
     "docs",
     "office.hooks.mjs",
     "README.md",
     "LICENSE"
   ],
-  "keywords": ["magpie", "magpie-plugin", "magpie-page", "agents", "status", "office", "dashboard", "opencode"],
+  "keywords": [
+    "magpie",
+    "magpie-plugin",
+    "magpie-page",
+    "agents",
+    "status",
+    "office",
+    "dashboard",
+    "opencode"
+  ],
   "license": "MIT",
-  "repository": { "type": "git", "url": "git+https://github.com/QingJ01/magpie-agent-office.git" },
-  "bugs": { "url": "https://github.com/QingJ01/magpie-agent-office/issues" },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/QingJ01/magpie-agent-office.git"
+  },
+  "bugs": {
+    "url": "https://github.com/QingJ01/magpie-agent-office/issues"
+  },
   "homepage": "https://github.com/QingJ01/magpie-agent-office#readme",
-  "engines": { "magpie": ">=0.1.1318" },
-  "scripts": { "test": "bun test" },
+  "engines": {
+    "magpie": ">=0.1.1318"
+  },
+  "scripts": {
+    "test": "bun test"
+  },
   "magpie": {
     "page": {
       "title": "Agent Office",
-      "titles": { "zh": "Agent 办公室", "zh-TW": "Agent 辦公室", "ja": "エージェントオフィス", "de": "Agent-Büro" },
+      "titles": {
+        "zh": "Agent 办公室",
+        "zh-TW": "Agent 辦公室",
+        "ja": "エージェントオフィス",
+        "de": "Agent-Büro"
+      },
       "file": "page/index.html",
       "icon": "page/icon.svg"
     },
     "hooks": "./office.hooks.mjs",
     "permissions": [],
-    "options": { "mode": "office", "dim": "3d", "demo": false, "showDone": true, "hideAfter": "6h", "text": true, "remote": false, "approvalAfterSec": 90 }
+    "options": {
+      "mode": "office",
+      "dim": "3d",
+      "demo": false,
+      "showDone": true,
+      "hideAfter": "6h",
+      "text": true,
+      "remote": false
+    }
   }
 }

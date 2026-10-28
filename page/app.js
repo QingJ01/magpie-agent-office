@@ -1,7 +1,13 @@
-// The page: loads live.js (what the gateway hook wrote) again every few
-// seconds, works out each agent's status (model.js), and draws the office
+// The page: loads live.js (what the plugin's host part wrote) again every
+// second, works out each agent's status (model.js), and draws the office
 // (scene.js) or the list. It reads nothing of magpie's but its own options,
 // and has no network: live.js is one of its own files.
+//
+// Interaction, kept calm on purpose: nothing opens because the pointer
+// passes over it. Hovering only highlights. A click on a worker, its name
+// tag, or a row opens that agent's panel at the side, which stays put (it
+// doesn't ride the animation) until it's closed or another agent is
+// clicked. The DOM is updated in place: nothing is rebuilt each second.
 (async () => {
   const M = globalThis.AgentOfficeModel
   const I = globalThis.AgentOfficeIcons
@@ -19,34 +25,55 @@
     hideAfter: M.HIDE[opts.hideAfter] !== undefined ? opts.hideAfter : M.DEFAULTS.hideAfter,
     approvalAfterSec: Number(opts.approvalAfterSec) > 0 ? Number(opts.approvalAfterSec) : M.DEFAULTS.approvalAfterSec,
   }
-  const state = { snap: null, loaded: false, list: [], open: "", pinned: false }
+  const state = { snap: null, loaded: false, list: [], open: "", hover: "" }
+  let floatHome = null
+  const t = () => M.text(lang)
+  const el = (tag, cls, text) => {
+    const e = document.createElement(tag)
+    if (cls) e.className = cls
+    if (text != null) e.textContent = text
+    return e
+  }
+  // a status as a person reads it: the sub-state says more than the six
+  function label(a) {
+    const w = t()
+    if (a.sub === "approval") return w.approval
+    if (a.sub === "ask") return w.ask
+    if (a.sub === "stopped") return w.stopped
+    if (a.sub === "stuck") return M.fill(w.stuck, M.duration(Date.now() - a.at, lang))
+    return w[a.status]
+  }
 
   // ---- words -----------------------------------------------------------
   function words() {
-    const t = M.text(lang)
-    document.querySelectorAll("[data-t]").forEach((e) => { e.textContent = t[e.dataset.t] })
-    $("pip").textContent = floatHome ? t.pipOn : t.pip
+    document.querySelectorAll("[data-t]").forEach((e) => { e.textContent = t()[e.dataset.t] })
+    $("pip").textContent = floatHome ? t().pipOn : t().pip
     document.documentElement.lang = lang || "en"
-    legends()
+    statusLegend()
+    lastLegend = ""
   }
 
-  function legends() {
-    const t = M.text(lang)
+  function statusLegend() {
     $("statusLegend").replaceChildren(...M.STATUSES.map((s) => {
-      const e = document.createElement("span")
-      e.className = "lg"
-      const dot = document.createElement("i")
+      const e = el("span", "lg")
+      const dot = el("i")
       dot.style.background = M.COLORS[s]
-      e.append(dot, document.createTextNode(t[s]))
+      e.append(dot, document.createTextNode(t()[s]))
       return e
     }))
-    // the agents magpie has marks for, then any other one at work here
-    const ids = [...M.LEGEND]
-    for (const a of state.list) if (!ids.some((id) => M.brand(id).name === a.brand.name)) ids.push(a.agent)
+  }
+
+  // the agents in the office now, each once, by its own icon
+  let lastLegend = ""
+  function brandLegend() {
+    const ids = []
+    for (const a of state.list) if (!ids.includes(a.agent)) ids.push(a.agent)
+    const sig = ids.join(",")
+    if (sig === lastLegend) return
+    lastLegend = sig
     $("brandLegend").replaceChildren(...ids.map((id) => {
       const b = M.brand(id)
-      const e = document.createElement("span")
-      e.className = "lg"
+      const e = el("span", "lg")
       e.append(I.mark(b, 18), document.createTextNode(b.name))
       return e
     }))
@@ -61,19 +88,20 @@
     s.src = "live.js?t=" + Date.now()
     const done = () => { loading = false; s.remove() }
     s.onload = () => {
-      state.snap = globalThis.AgentOfficeLive || null
+      const snap = globalThis.AgentOfficeLive || null
+      const changed = snap?.written !== state.snap?.written
+      state.snap = snap
       state.loaded = true
       done()
-      refresh()
+      if (changed) refresh()
     }
-    s.onerror = () => { state.loaded = true; done(); refresh() }
+    s.onerror = () => { const first = !state.loaded; state.loaded = true; done(); if (first) refresh() }
     document.head.append(s)
   }
 
   function snapshot(now) {
     if (!view.demo) return state.snap
     state.demoSnap ??= M.demo(now)
-    // beside what is really happening, not instead of it
     return M.merge(state.snap, state.demoSnap)
   }
 
@@ -82,148 +110,164 @@
   const tags = new Map()
 
   function tagFor(a) {
-    let el = tags.get(a.key)
-    if (!el) {
-      el = document.createElement("button")
-      el.type = "button"
-      el.className = "tag"
-      el.dataset.key = a.key
-      el.addEventListener("mouseenter", () => { if (!state.pinned) show(a.key) })
-      el.addEventListener("mouseleave", () => { if (!state.pinned) hideSoon() })
-      el.addEventListener("click", (e) => { e.stopPropagation(); pin(a.key) })
-      $("tags").append(el)
-      tags.set(a.key, el)
+    let e = tags.get(a.key)
+    if (!e) {
+      e = el("button", "tag")
+      e.type = "button"
+      e.dataset.key = a.key
+      e.addEventListener("click", (ev) => { ev.stopPropagation(); open(a.key) })
+      e.addEventListener("mouseenter", () => highlight(a.key))
+      e.addEventListener("mouseleave", () => highlight(""))
+      $("tags").append(e)
+      tags.set(a.key, e)
     }
     const sig = [a.brand.icon, a.brand.name, a.title, a.status].join("|")
-    if (el.dataset.sig !== sig) {
-      el.dataset.sig = sig
-      const name = document.createElement("span")
-      name.className = "tn"
-      name.textContent = a.title
-      const dot = document.createElement("i")
-      dot.className = "td"
+    if (e.dataset.sig !== sig) {
+      e.dataset.sig = sig
+      const name = el("span", "tn", a.title)
+      const dot = el("i", "td")
       dot.style.background = M.COLORS[a.status]
-      el.replaceChildren(I.mark(a.brand, 14), name, dot)
-      el.dataset.status = a.status
-      el.title = `${a.brand.name} · ${M.text(lang)[a.status]}`
+      e.replaceChildren(I.mark(a.brand, 15), name, dot)
+      e.dataset.status = a.status
     }
-    return el
+    e.title = `${a.brand.name} · ${label(a)}`
+    return e
   }
 
-  // each frame: the tags follow their workers, the card its tag
+  // each frame: the tags follow their workers; nothing else moves with them
   function place(anchors) {
     const seen = new Set()
-    // a window of its own has no room for every name tag: the ones that
-    // need you stay, and the one under the pointer, whose card says the rest
-    const few = floatHome
-      ? new Set(state.list.filter((a) => a.status === "waiting" || a.status === "error" || a.key === state.open).map((a) => a.key))
-      : null
+    // in the small window only the ones that need you keep a name tag
+    const few = floatHome ? new Set(state.list.filter((a) => a.status === "waiting" || a.status === "error" || a.key === state.open).map((a) => a.key)) : null
     for (const p of anchors) {
-      const el = tags.get(p.key)
-      if (!el) continue
+      const e = tags.get(p.key)
+      if (!e) continue
       seen.add(p.key)
-      el.style.transform = `translate(${Math.round(p.x)}px, ${Math.round(p.y)}px) translate(-50%, -100%)`
+      const tf = `translate(${Math.round(p.x)}px, ${Math.round(p.y)}px) translate(-50%, -100%)`
+      if (e.style.transform !== tf) e.style.transform = tf
     }
-    for (const [k, el] of tags) el.hidden = !seen.has(k) || (few ? !few.has(k) : false)
-    if (state.open) {
-      const p = anchors.find((x) => x.key === state.open)
-      if (p) position(p)
+    for (const [k, e] of tags) {
+      const hide = !seen.has(k) || (few ? !few.has(k) : false)
+      if (e.hidden !== hide) e.hidden = hide
     }
   }
 
-  function position(p) {
-    const pop = $("pop")
-    const st = $("stage").getBoundingClientRect()
-    const w = pop.offsetWidth || 360, h = pop.offsetHeight || 220
-    let x = p.x + 24, y = p.y - 10
-    if (x + w > st.width - 8) x = p.x - w - 24
-    if (x < 8) x = Math.max(8, Math.min(st.width - w - 8, p.x - w / 2))
-    y = Math.max(8, Math.min(st.height - h - 8, y))
-    pop.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px)`
+  // the pointer over a worker or its tag only highlights it
+  function highlight(key) {
+    if (state.hover === key) return
+    state.hover = key
+    scene.highlight = key
+    for (const [k, e] of tags) e.classList.toggle("hot", k === key)
   }
 
-  // ---- the card --------------------------------------------------------
-  function card(a) {
-    const t = M.text(lang)
-    const el = (tag, cls, text) => {
-      const e = document.createElement(tag)
-      if (cls) e.className = cls
-      if (text != null) e.textContent = text
-      return e
-    }
-    const head = el("div", "ph")
-    head.append(I.mark(a.brand, 18), el("span", "pa", a.brand.name), el("span", "pt", a.title), el("span", "pw", M.ago(Date.now() - a.at, lang)))
-    const body = [head]
-    body.push(el("div", "pq", a.query || (state.snap?.text === false && !view.demo ? t.quiet : t.noPrompt)))
-    const st = el("div", "ps " + a.status)
-    const icon = { done: "✓", error: "×", waiting: "!", thinking: "…", executing: "⟳", replying: "✎" }[a.status]
-    st.append(el("span", "pi", icon), el("span", null, t[a.status]))
-    if (a.steps || a.turns) st.append(el("span", "pn", [a.turns ? M.fill(t.turns, a.turns) : "", a.steps ? M.fill(t.steps, a.steps) : ""].filter(Boolean).join(" · ")))
-    body.push(st)
-    if (a.step) body.push(el("div", "pstep", "› " + a.step + (a.status === "executing" ? "  ·  " + M.fill(t.ran, M.duration(a.since, lang)) : "")))
-    if (a.hint === "approval") body.push(el("div", "phint", M.fill(t.approval, M.duration(a.since, lang))))
-    if (a.reply) body.push(el("div", "pr", "← " + a.reply))
-    const foot = el("div", "pf")
-    foot.append(el("span", "pm", [a.model, a.project].filter(Boolean).join(" · ")))
-    const copy = a.resume || a.session
-    if (copy) {
-      const b = el("button", "pc", a.resume ? t.copyResume : t.copySession)
-      b.type = "button"
-      b.dataset.label = b.textContent
-      b.addEventListener("click", (e) => { e.stopPropagation(); copyText(copy, b) })
-      foot.append(b)
-    }
-    body.push(foot)
-    return body
-  }
-
-  function show(key) {
-    clearTimeout(hideTimer)
-    const a = state.list.find((x) => x.key === key)
-    if (!a) return
-    state.open = key
-    const pop = $("pop")
-    pop.replaceChildren(...card(a))
-    pop.hidden = false
-    for (const [k, el] of tags) el.classList.toggle("on", k === key)
-  }
-  let hideTimer = null
-  function hideSoon() {
-    clearTimeout(hideTimer)
-    hideTimer = setTimeout(close, 180)
-  }
-  function close() {
-    state.open = ""
-    state.pinned = false
-    $("pop").hidden = true
-    for (const el of tags.values()) el.classList.remove("on")
-  }
-  function pin(key) {
-    if (state.pinned && state.open === key) return close()
-    state.pinned = true
-    show(key)
-  }
-  $("pop").addEventListener("mouseenter", () => clearTimeout(hideTimer))
-  $("pop").addEventListener("mouseleave", () => { if (!state.pinned) hideSoon() })
-  $("pop").addEventListener("click", (e) => e.stopPropagation())
-
-  $("office").addEventListener("mousemove", (e) => {
-    if (state.pinned) return
-    const r = e.currentTarget.getBoundingClientRect()
-    const k = scene.hit(e.clientX - r.left, e.clientY - r.top)
-    e.currentTarget.style.cursor = k ? "pointer" : ""
-    if (k && k !== state.open) show(k)
-    else if (!k && state.open) hideSoon()
+  let moveQueued = false
+  $("office").addEventListener("pointermove", (e) => {
+    if (moveQueued) return
+    moveQueued = true
+    const x = e.offsetX, y = e.offsetY
+    requestAnimationFrame(() => {
+      moveQueued = false
+      const k = scene.hit(x, y)
+      $("office").style.cursor = k ? "pointer" : ""
+      highlight(k)
+    })
   })
+  $("office").addEventListener("pointerleave", () => highlight(""))
   $("office").addEventListener("click", (e) => {
-    const r = e.currentTarget.getBoundingClientRect()
-    const k = scene.hit(e.clientX - r.left, e.clientY - r.top)
-    if (k) pin(k)
+    const k = scene.hit(e.offsetX, e.offsetY)
+    if (k) open(k)
     else close()
   })
 
+  // ---- the panel ---------------------------------------------------------
+  // one agent, opened by a click, at the side; it doesn't move with the
+  // scene and is updated in place each second
+  const panel = $("pop")
+  const P = {}
+  ;(() => {
+    const head = el("div", "ph")
+    P.mark = el("span", "pmk")
+    P.agent = el("span", "pa")
+    P.when = el("span", "pw")
+    P.close = el("button", "px", "✕")
+    P.close.type = "button"
+    P.close.setAttribute("aria-label", "Close")
+    P.close.addEventListener("click", close)
+    head.append(P.mark, P.agent, P.when, P.close)
+    P.title = el("div", "pt")
+    P.status = el("div", "ps")
+    P.stIcon = el("span", "pi")
+    P.stText = el("span", "pst")
+    P.stMore = el("span", "pn")
+    P.status.append(P.stIcon, P.stText, P.stMore)
+    P.query = el("div", "pq")
+    P.step = el("div", "pstep")
+    P.err = el("div", "perr")
+    P.reply = el("div", "pr")
+    const foot = el("div", "pf")
+    P.meta = el("span", "pm")
+    P.copy = el("button", "pc")
+    P.copy.type = "button"
+    P.copy.addEventListener("click", (e) => { e.stopPropagation(); copyText(P.copy.dataset.value, P.copy) })
+    foot.append(P.meta, P.copy)
+    P.src = el("div", "psrc")
+    panel.replaceChildren(head, P.title, P.status, P.query, P.step, P.err, P.reply, foot, P.src)
+  })()
+  panel.addEventListener("click", (e) => e.stopPropagation())
+
+  const ICON = { done: "✓", error: "!", waiting: "?", thinking: "…", executing: "⟳", replying: "✎" }
+  function fillPanel(a) {
+    const w = t()
+    const setText = (node, s) => { if (node.textContent !== s) node.textContent = s }
+    if (P.mark.dataset.icon !== a.brand.icon + a.brand.name) {
+      P.mark.dataset.icon = a.brand.icon + a.brand.name
+      P.mark.replaceChildren(I.mark(a.brand, 18))
+    }
+    setText(P.agent, a.brand.name)
+    setText(P.when, M.ago(Date.now() - a.at, lang))
+    setText(P.title, a.title)
+    P.status.className = "ps " + a.status
+    setText(P.stIcon, ICON[a.status] || "")
+    setText(P.stText, label(a))
+    const more = a.status === "executing" && a.since > 3000 ? M.fill(w.ran, M.duration(a.since, lang)) : a.turns ? M.fill(w.turns, a.turns) : ""
+    setText(P.stMore, more)
+    const q = a.query || (state.snap?.text === false && !view.demo ? w.quiet : "")
+    setText(P.query, q); P.query.hidden = !q
+    setText(P.step, a.step ? "› " + a.step : ""); P.step.hidden = !a.step
+    setText(P.err, a.error); P.err.hidden = !a.error
+    setText(P.reply, a.reply ? "← " + a.reply : ""); P.reply.hidden = !a.reply
+    setText(P.meta, [a.model, a.project].filter(Boolean).join(" · "))
+    const copy = a.resume || a.session
+    P.copy.hidden = !copy
+    if (copy && P.copy.dataset.value !== copy) {
+      P.copy.dataset.value = copy
+      P.copy.dataset.label = a.resume ? w.copyResume : w.copySession
+      P.copy.textContent = P.copy.dataset.label
+    }
+    setText(P.src, a.source === "files" ? w.fromFiles : w.via)
+  }
+
+  function open(key) {
+    if (state.open === key) return close()
+    const a = state.list.find((x) => x.key === key)
+    if (!a) return
+    state.open = key
+    scene.selected = key
+    fillPanel(a)
+    panel.hidden = false
+    for (const [k, e] of tags) e.classList.toggle("on", k === key)
+    for (const tr of $("rows").children) tr.classList.toggle("on", tr.dataset.key === key)
+  }
+  function close() {
+    if (!state.open) return
+    state.open = ""
+    scene.selected = ""
+    panel.hidden = true
+    for (const e of tags.values()) e.classList.remove("on")
+    for (const tr of $("rows").children) tr.classList.remove("on")
+  }
+
   async function copyText(s, btn) {
-    const t = M.text(lang)
     let ok = false
     try { await navigator.clipboard.writeText(s); ok = true } catch {}
     if (!ok) {
@@ -236,63 +280,64 @@
       ta.remove()
     }
     if (ok) {
-      btn.textContent = t.copied
-      setTimeout(() => { btn.textContent = btn.dataset.label || t.copyResume }, 1400)
+      btn.textContent = t().copied
+      setTimeout(() => { btn.textContent = btn.dataset.label }, 1400)
     } else {
       // the frame may not reach the clipboard: let the reader copy it
-      const box = document.createElement("input")
-      box.className = "pcopy"
+      const box = el("input", "pcopy")
       box.readOnly = true
       box.value = s
-      btn.replaceWith(box)
+      btn.after(box)
       box.select()
     }
   }
 
   // ---- the list --------------------------------------------------------
+  // rows kept by key and updated in place, so nothing jumps under the pointer
+  const rowsByKey = new Map()
+  function rowFor(a) {
+    let r = rowsByKey.get(a.key)
+    if (!r) {
+      const tr = el("tr")
+      tr.dataset.key = a.key
+      tr.tabIndex = 0
+      const c = () => { const td = el("td"); tr.append(td); return td }
+      r = { tr, ag: c(), task: c(), st: c(), dir: c(), model: c(), when: c() }
+      r.ag.className = "ag"; r.task.className = "task"; r.dir.className = "mono"; r.model.className = "mono"; r.when.className = "muted"
+      r.mark = el("span"); r.name = el("span"); r.ag.append(r.mark, r.name)
+      r.title = el("div", "lt"); r.sub = el("div", "ls"); r.task.append(r.title, r.sub)
+      r.badge = el("span", "badge"); r.st.append(r.badge)
+      tr.addEventListener("click", () => open(a.key))
+      tr.addEventListener("keydown", (e) => { if (e.key === "Enter") open(a.key) })
+      rowsByKey.set(a.key, r)
+    }
+    const set = (n, s) => { if (n.textContent !== s) n.textContent = s }
+    if (r.mark.dataset.icon !== a.brand.icon) { r.mark.dataset.icon = a.brand.icon; r.mark.replaceChildren(I.mark(a.brand, 16)) }
+    set(r.name, a.brand.name)
+    set(r.title, a.title)
+    set(r.sub, a.status === "waiting" || a.status === "done" || a.status === "error" ? a.error || a.reply || a.step || a.query : a.step || a.query)
+    r.badge.style.setProperty("--c", M.COLORS[a.status])
+    set(r.badge, label(a))
+    set(r.dir, a.project)
+    set(r.model, a.model)
+    set(r.when, M.ago(Date.now() - a.at, lang))
+    r.tr.classList.toggle("on", a.key === state.open)
+    return r.tr
+  }
   function rows() {
-    const t = M.text(lang)
     const list = M.sorted(state.list)
     $("emptyList").hidden = list.length > 0
     $("emptyList").textContent = emptyText()
-    $("rows").replaceChildren(...list.map((a) => {
-      const tr = document.createElement("tr")
-      const td = (cls, ...kids) => {
-        const c = document.createElement("td")
-        if (cls) c.className = cls
-        c.append(...kids)
-        tr.append(c)
-        return c
-      }
-      const name = document.createElement("span")
-      name.textContent = a.brand.name
-      td("ag", I.mark(a.brand, 16), name)
-      const title = document.createElement("div")
-      title.className = "lt"
-      title.textContent = a.title
-      const sub = document.createElement("div")
-      sub.className = "ls"
-      sub.textContent = a.status === "waiting" || a.status === "done" ? a.reply || a.query : a.step || a.query
-      td("task", title, sub)
-      const badge = document.createElement("span")
-      badge.className = "badge"
-      badge.style.setProperty("--c", M.COLORS[a.status])
-      badge.textContent = t[a.status]
-      td("", badge)
-      td("mono", document.createTextNode(a.project))
-      td("mono", document.createTextNode(a.model))
-      td("muted", document.createTextNode(M.ago(Date.now() - a.at, lang)))
-      tr.tabIndex = 0
-      tr.addEventListener("click", () => { setMode("office"); setTimeout(() => pin(a.key), 50) })
-      return tr
-    }))
+    const want = list.map(rowFor)
+    const body = $("rows")
+    const keys = new Set(list.map((a) => a.key))
+    for (const [k, r] of rowsByKey) if (!keys.has(k)) { r.tr.remove(); rowsByKey.delete(k) }
+    // put rows in order, moving only the ones out of place
+    want.forEach((tr, i) => { if (body.children[i] !== tr) body.insertBefore(tr, body.children[i] || null) })
   }
 
-  // before the first read: that it is waiting; after one with nothing in
-  // it: what to do
   function emptyText() {
-    const t = M.text(lang)
-    return state.loaded && state.snap ? t.empty : t.noFile
+    return state.loaded && state.snap ? t().empty : t().noFile
   }
 
   // ---- everything ------------------------------------------------------
@@ -300,23 +345,30 @@
     const now = Date.now()
     state.list = M.agents(snapshot(now), now, view)
     const c = M.counts(state.list)
-    $("nNeed").textContent = c.needYou
-    $("nWork").textContent = c.working
-    $("nDone").textContent = c.done
+    const set = (id, v) => { const n = $(id); if (n.textContent !== String(v)) n.textContent = v }
+    set("nNeed", c.needYou)
+    set("nWork", c.working)
+    set("nDone", c.done)
     $("counts").classList.toggle("alert", c.needYou > 0)
     scene.setAgents(state.list)
     const keys = new Set(state.list.map((a) => a.key))
-    for (const [k, el] of tags) if (!keys.has(k)) { el.remove(); tags.delete(k) }
+    for (const [k, e] of tags) if (!keys.has(k)) { e.remove(); tags.delete(k) }
     for (const a of state.list) tagFor(a)
-    if (state.open && !keys.has(state.open)) close()
-    else if (state.open) show(state.open)
+    if (state.open) {
+      const a = state.list.find((x) => x.key === state.open)
+      if (a) fillPanel(a)
+      else close()
+    }
     $("empty").hidden = state.list.length > 0
-    $("empty").textContent = emptyText()
-    $("note").textContent = view.demo ? M.text(lang).demoOn : ""
-    $("wm").textContent = state.snap?.written && !view.demo ? M.ago(now - state.snap.written, lang) : ""
+    if (!$("empty").hidden) $("empty").textContent = emptyText()
+    set("note", view.demo ? t().demoOn : "")
+    const age = state.snap?.written ? now - state.snap.written : 0
+    const live = $("live")
+    live.classList.toggle("stale", !!state.snap && age > 15000)
+    live.title = state.snap ? M.fill(t().stale, M.ago(age, lang)) : ""
     if (view.mode === "list") rows()
-    legends()
-    document.title = c.needYou ? `(${c.needYou}) ${M.text(lang).title}` : M.text(lang).title
+    brandLegend()
+    document.title = c.needYou ? `(${c.needYou}) ${t().title}` : t().title
   }
 
   function select(group, attr, value) {
@@ -329,22 +381,21 @@
     $("stage").hidden = m !== "office"
     $("listview").hidden = m !== "list"
     $("dims").classList.toggle("off", m !== "office")
-    if (m === "office") { scene.resize(); scene.start() } else { scene.stop(); close() }
+    if (m === "office") { scene.resize(); scene.start() } else scene.stop()
     refresh()
   }
 
-  // options can be set once a second: a quick second change is saved with
-  // the next one
   // saving restarts the plugin's host (magpie's options do), so a change
-  // waits until it has been left alone a moment, and only the keys that
-  // differ are written
+  // waits until it has been left alone a moment, and only a real change is
+  // written
   let saving = null
   let saved = JSON.stringify(opts)
+  const textOn = () => $("optText").checked
   function wanted() {
     return { ...opts, mode: view.mode, dim: view.dim, demo: view.demo, showDone: view.showDone, hideAfter: view.hideAfter, text: textOn() }
   }
   function save() {
-    if (saving) return
+    clearTimeout(saving)
     saving = setTimeout(async () => {
       saving = null
       const next = wanted()
@@ -352,8 +403,6 @@
       try { opts = await magpie.options.set(next); saved = JSON.stringify(opts) } catch {}
     }, 2500)
   }
-  // text is the hook's option: whether it keeps prompts and replies
-  const textOn = () => $("optText").checked
 
   $("modes").addEventListener("click", (e) => {
     const m = e.target.closest("button")?.dataset.mode
@@ -395,80 +444,80 @@
     save()
   })
 
-  // picture in picture: the office in a window of the page's own, which no
-  // frame can refuse (magpie's frame sets allow="", so the browser's own
-  // floating window refuses a sandboxed page: that one was tried and left
-  // nothing on screen). It moves, reshapes, and Escape or the bar's ✕ puts
-  // it back.
-  let floatHome = null
+  // picture in picture: the office in a window of the page's own (magpie's
+  // frame refuses the browser's own floating window to a sandboxed page).
+  // Its bar moves it, its corner reshapes it, ✕ or Escape puts it back.
   function openFloat() {
     if (floatHome) return
     const stage = $("stage")
-    const ph = document.createElement("div")
-    ph.className = "stage-slot"
-    ph.textContent = M.text(lang).floating
+    const ph = el("div", "stage-slot", t().floating)
     stage.parentElement.insertBefore(ph, stage)
     floatHome = { parent: ph.parentElement, ph }
     $("floatslot").append(stage)
     $("float").hidden = false
     $("float").style.cssText = ""
     $("pip").classList.add("on")
-    $("pip").textContent = M.text(lang).pipOn
+    $("pip").textContent = t().pipOn
     scene.resize()
   }
   function closeFloat() {
     if (!floatHome) return
-    const stage = $("stage")
-    floatHome.parent.insertBefore(stage, floatHome.ph)
+    floatHome.parent.insertBefore($("stage"), floatHome.ph)
     floatHome.ph.remove()
     floatHome = null
     $("float").hidden = true
     $("pip").classList.remove("on")
-    $("pip").textContent = M.text(lang).pip
+    $("pip").textContent = t().pip
     scene.resize()
   }
   $("floatClose").addEventListener("click", closeFloat)
-  // the window's bar moves it
-  $("floatbar").addEventListener("mousedown", (e) => {
+  $("floatbar").addEventListener("pointerdown", (e) => {
     if (e.target.closest(".fclose")) return
-    const box = $("float").getBoundingClientRect()
+    const f = $("float")
+    const box = f.getBoundingClientRect()
     const dx = e.clientX - box.left, dy = e.clientY - box.top
+    f.setPointerCapture?.(e.pointerId)
     const move = (m) => {
       const x = Math.max(0, Math.min(innerWidth - box.width, m.clientX - dx))
       const y = Math.max(0, Math.min(innerHeight - box.height, m.clientY - dy))
-      Object.assign($("float").style, { left: x + "px", top: y + "px", right: "auto", bottom: "auto" })
-      scene.resize()
+      Object.assign(f.style, { left: x + "px", top: y + "px", right: "auto", bottom: "auto" })
     }
-    const up = () => { removeEventListener("mousemove", move); removeEventListener("mouseup", up) }
-    addEventListener("mousemove", move)
-    addEventListener("mouseup", up)
+    const up = () => { removeEventListener("pointermove", move); removeEventListener("pointerup", up) }
+    addEventListener("pointermove", move)
+    addEventListener("pointerup", up)
     e.preventDefault()
   })
-
   $("pip").addEventListener("click", () => {
     if (floatHome) return closeFloat()
     if (view.mode !== "office") setMode("office")
     openFloat()
   })
 
-  new ResizeObserver(() => scene.resize()).observe($("stage"))
+  // the canvas is sized only when its box really changes
+  let resizeQueued = false
+  new ResizeObserver(() => {
+    if (resizeQueued) return
+    resizeQueued = true
+    requestAnimationFrame(() => { resizeQueued = false; scene.resize() })
+  }).observe($("stage"))
   document.addEventListener("keydown", (e) => {
     if (e.key !== "Escape") return
-    if (floatHome) { closeFloat(); $("pip").classList.remove("on") }
-    close()
+    if (state.open) return close()
+    if (floatHome) closeFloat()
   })
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) scene.stop()
     else if (view.mode === "office") scene.start()
   })
-  magpie.onTheme((t) => { lang = t.lang; words(); refresh() })
+  magpie.onTheme((th) => { lang = th.lang; words(); refresh() })
 
   select("modes", "mode", view.mode)
   select("dims", "dim", view.dim)
   words()
   setMode(view.mode)
   load()
-  // what the hook wrote, every few seconds; the clock-made statuses
-  // (executing → waiting) and "N min ago" move with it
-  setInterval(load, 2500)
+  // the host writes live.js within a second and a half of a change; the
+  // page looks every second, and "N min ago" moves with its own clock
+  setInterval(load, 1000)
+  setInterval(() => { if (state.open) { const a = state.list.find((x) => x.key === state.open); if (a) fillPanel(a) } }, 5000)
 })()
