@@ -1,6 +1,6 @@
 # Agent Office · 我的 Agent 在干嘛
 
-A page in [magpie](https://usemagpie.ai)'s window that shows every agent working through magpie as a little worker in a voxel space-station office — in isometric 3D or top-down 2D — or as a list.
+A page in [magpie](https://usemagpie.ai)'s window that shows, live, what each of your coding agents is doing — read from the agents' own session files — as a little worker in a voxel space-station office (isometric 3D or top-down 2D) or as a list.
 
 ![Agent Office in magpie's window](docs/in-magpie.png)
 
@@ -8,7 +8,7 @@ A page in [magpie](https://usemagpie.ai)'s window that shows every agent working
 magpie plugin add QingJ01/magpie-agent-office
 ```
 
-Then open **插件 › Agent 办公室** in the sidebar. Any agent whose model is a magpie model walks in on its next request: Claude Code, Codex, Gemini CLI, Grok, Antigravity, OpenCode, Pi, DeepSeek Harness and the rest.
+Then open **插件 › Agent 办公室** in the sidebar. Claude Code, Codex, DeepSeek Harness, Gemini CLI, Qwen Code, Pi, omp, Qoder, WorkBuddy and CodeBuddy show from their own session files, whatever model they use; any other agent shows while it works through magpie's models.
 
 The repository carries the `magpie-plugin` topic, so magpie also lists it under **插件 › 发现 › 非官方插件 · GitHub**.
 
@@ -23,24 +23,38 @@ The repository carries the `magpie-plugin` topic, so magpie also lists it under 
 | Done · 已完成 | on the sofa, asleep after 20 minutes | z |
 | Error · 错误 | at the broken console | × |
 
-The counts at the top are how many need you (waiting for an answer, or failed), how many are working and how many are done. One real session, seen through a sandboxed magpie with no models signed in, so the request failed:
+The counts at the top are how many need you (waiting for an approval or an answer, failed, or stuck), how many are working and how many are done. Below, real sessions: DeepSeek Harness running a tool, Codex done on the sofa, the panel of the first opened by a click:
 
-![One session that failed](docs/one-session.png)
-
-Hover a worker or click its name tag for a card with the agent, the task, the last thing asked, the last step it ran, how its answer begins, the model, and **Copy resume command** (`claude --resume …`, `codex resume …` and others).
+![A real session's panel](docs/panel.png)
 
 ## How it knows
 
-The repository is one plugin with two parts:
+From each agent's **own session file**, as the agent writes it — not a guess from traffic. The plugin's host part (it runs in magpie's plugin host while magpie is open) reads them every 1.5 seconds, only what changed:
 
-- **`office.hooks.mjs`** — an [asynchronous gateway hook](https://usemagpie.ai/docs/plugins#gateway-request). magpie calls `onRequest` before routing each agent request and `onResponse` once its reply is complete. The hook **changes nothing**: it returns no body, so every request goes on exactly as it came. It records which session is at work, whether a request answers the user or a tool's result, and how the reply ended (tool calls, a question, plain text, or an error), and writes that to `page/live.js` in its own folder, at most four times a second.
-- **`page/`** — the page. It runs in magpie's sandboxed frame with no network, and every few seconds loads `live.js` again (one of its own files). It works out each session's status against its own clock.
+| Agent | File it reads |
+|---|---|
+| Claude Code | `~/.claude/projects/*/*.jsonl` |
+| Codex | `~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl` (+ `session_index.jsonl` for titles) |
+| DeepSeek Harness | `~/.dsh/sessions/*/*/session.v4.jsonl.zstd` |
+| Gemini CLI · Qwen Code | `~/.gemini/tmp/*/chats/session-*`, `~/.qwen/tmp/*/chats/session-*` |
+| Pi · omp | `~/.pi/agent/sessions/*/*.jsonl`, `~/.omp/agent/sessions/*/*.jsonl` |
+| Qoder · WorkBuddy · CodeBuddy | their `projects/*/*.jsonl` (Claude Code's format) |
 
-Sessions are told apart by the session id the agent sends (`X-Magpie-Session`, Claude Code's and Codex's own headers, and others). A request from an agent that sends none is grouped by its folder. A request without tools from a session that uses tools (a title or a summary) is a side request, so it doesn't count as the session's work.
+The `*_HOME` / `*_CONFIG_DIR` variables those agents honour are honoured here too. What each file says decides the status outright: a tool call with no result yet is **running**, an approval asked (Codex's `exec_approval_request`, DeepSeek Harness's `approval/asked`, Gemini's `awaiting_approval`) is **waiting for you**, a question tool is **asked you something**, the turn's end is **done**, an interruption is **stopped**, an error turn is **error**. A turn whose file hasn't moved for ten minutes is shown as stuck.
+
+Every other agent (Cursor, OpenCode, Copilot, Kimi…) shows while it works through magpie: the module is also an [asynchronous gateway hook](https://usemagpie.ai/docs/plugins#gateway-request) that sees its requests. The hook returns no body, so no request changes.
+
+Both write `page/live.js` beside the page, which the page loads every second (a plugin page has no network; its own files it may load). The green **live** dot by the title turns grey if the host stops writing.
+
+All 60 agents magpie knows are named with their own icons, the files magpie itself shows (`page/icons`, from magpie's assets, MIT).
+
+## Using it
+
+Hovering only highlights a worker. **Click** a worker, its name tag or a row in the list to open its panel — the task, the last thing you asked, the step it's on, how its answer begins, its model and folder, **Copy resume command** — which stays at the side until you close it (✕ or Esc) or click another agent.
 
 ## Privacy
 
-- It only records requests made on this computer: magpie's `origin: local`. Requests through a gateway key or from other computers are left out unless you set `"remote": true`.
+- It reads the agents' session files on this computer, only reads them, and only the last two days'. Through the gateway it records only requests made on this computer (magpie's `origin: local`) unless you set `"remote": true`.
 - `live.js` holds the agent, the session id, the folder name and path, the model, the last prompt (200 characters), the first 280 characters of the last answer, and the names and targets of the last tool calls. It never holds a key, a header or a whole conversation. With `"text": false` (Settings › Show prompts and replies, off) it keeps statuses and tool names only.
 - `live.js` stays in the plugin's folder and is never sent anywhere. The page asks magpie for no data at all: its `permissions` list is empty.
 
@@ -58,7 +72,7 @@ magpie frames a plugin's page with `allow=""` and `sandbox="allow-scripts"`, so 
 ## Options
 
 ```json
-{ "mode": "office", "dim": "3d", "demo": false, "showDone": true, "hideAfter": "6h", "text": true, "remote": false, "approvalAfterSec": 90 }
+{ "mode": "office", "dim": "3d", "demo": false, "showDone": true, "hideAfter": "6h", "text": true, "remote": false }
 ```
 
 | Key | |
@@ -68,22 +82,25 @@ magpie frames a plugin's page with `allow=""` and `sandbox="allow-scripts"`, so 
 | `demo` | show sample agents (Settings › Sample agents) |
 | `showDone` | keep finished agents on the sofa |
 | `hideAfter` | when a finished or failed agent leaves: `1h`, `6h`, `24h`, `never` |
-| `text` | the hook keeps prompts and replies (`false`: statuses only) |
-| `remote` | the hook also records requests from other computers and gateway keys |
-| `approvalAfterSec` | how long tools run before the agent counts as waiting for you (90) |
+| `text` | keep prompts and replies (`false`: statuses and tool names only) |
+| `remote` | the gateway part also records requests from other computers and gateway keys |
+| `approvalAfterSec` | for an agent seen only through the gateway: how long its tools run before it counts as waiting for you (90) |
 
 The page saves the first five as you change them; a change restarts the plugin's host (magpie's options do), so it waits until it has been left alone a moment.
 
 ## What it cannot know
 
-- **Only agents whose models are magpie's.** An agent that talks to its vendor directly never passes the gateway, so it has no session here. A plugin page may read only `usage:summary` and `providers:list`, and neither says what a session is doing.
-- **A status is worked out, not reported.** The page infers it from what the gateway saw: a request out is thinking (replying once it has run more than 8 seconds), tool calls that have not come back are executing, and one that has sat 90 seconds is taken as waiting for an approval. `approvalAfterSec` moves that line; a step that genuinely runs long (a build, a test suite) reads as waiting until its result arrives, and its card says how long it has run.
-- **The request is the boundary.** A tool the client runs itself is invisible: magpie sees the call, then nothing until the agent asks again.
+- **An agent whose files it doesn't read and that doesn't use magpie's models.** It has no record here at all.
+- **The model's word-by-word progress.** A file is written per message, so "replying" means the session's file is moving and the model has begun its answer.
+- **Sessions older than two days**, or more than the latest 40: they are left out to keep each read cheap.
 
 ## Files
 
-- `lib/track.mjs` — what the hook keeps, from requests and replies in each API (Anthropic Messages, Chat Completions, Responses, Gemini). No I/O, so the tests drive it directly.
-- `office.hooks.mjs` — the hook: calls the tracker, writes `page/live.js`.
+- `lib/readers.mjs` — each agent's session format turned into its phase, step, prompt and answer. No I/O.
+- `lib/scan.mjs` — finds the files in each agent's folder and rereads only the ones that changed.
+- `lib/track.mjs` — what the gateway hook keeps, from requests and replies in each API (Anthropic Messages, Chat Completions, Responses, Gemini). No I/O, so the tests drive it directly.
+- `office.hooks.mjs` — the host part: scans every 1.5 s, sees the gateway's requests, writes `page/live.js`.
+- `page/agents.js`, `page/icons/` — every agent magpie knows, with its own icon.
 - `page/model.js` — statuses, counts, words (English and Chinese), agent marks, resume commands and sample agents, with no DOM.
 - `page/scene.js` — the office, drawn on a canvas in isometric 3D or top-down 2D.
 - `page/icons.js`, `page/app.js`, `page/index.html`, `page/style.css` — the page.

@@ -124,7 +124,8 @@ td.ag .mark { margin-right: 6px; }
 td.task { max-width: 420px; }
 .lt { font-weight: 600; }
 .ls { color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 420px; }
-td.mono { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+td.mono { font-family: var(--mono); font-size: 12px; color: var(--muted); max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+th:last-child, td.muted { white-space: nowrap; }
 td.muted { color: var(--muted); white-space: nowrap; }
 .badge { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; font-size: 12px; font-weight: 600; color: var(--c); }
 .badge::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--c); }
