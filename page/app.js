@@ -71,11 +71,10 @@
   }
 
   function snapshot(now) {
-    if (view.demo) {
-      state.demoSnap ??= M.demo(now)
-      return state.demoSnap
-    }
-    return state.snap
+    if (!view.demo) return state.snap
+    state.demoSnap ??= M.demo(now)
+    // beside what is really happening, not instead of it
+    return M.merge(state.snap, state.demoSnap)
   }
 
   // ---- the office ------------------------------------------------------

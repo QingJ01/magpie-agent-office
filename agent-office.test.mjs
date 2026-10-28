@@ -197,6 +197,19 @@ test("a step that has run long is probably an approval prompt", () => {
   expect(M.agents(asked, now)[0].hint).toBe("")
 })
 
+test("example agents sit beside real ones, never instead of them", () => {
+  const now = 10_000_000
+  const real = { v: 1, written: now, text: true, sessions: [{ key: "claude|real", agent: "claude", session: "real", cwd: "/r", project: "r",
+    title: "real work", query: "q", model: "m", started: now - 1000, updated: now, turns: 1, steps: 0, inflight: 1, inflightSince: now - 500, last: null }] }
+  const demo = M.demo(now)
+  const both = M.merge(real, demo)
+  expect(both.sessions.length).toBe(real.sessions.length + demo.sessions.length)
+  expect(both.sessions[0].key).toBe("claude|real")
+  expect(M.agents(both, now).some((a) => a.title === "real work")).toBe(true)
+  // nothing real yet: the examples alone
+  expect(M.merge(null, demo).sessions.length).toBe(demo.sessions.length)
+})
+
 test("words, in English and Chinese", () => {
   expect(M.text("zh-CN").title).toBe("我的 Agent 在干嘛")
   expect(M.text("en").waiting).toBe("Waiting for you")

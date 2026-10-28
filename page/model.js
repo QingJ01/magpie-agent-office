@@ -201,6 +201,14 @@
     return list.slice().sort((a, b) => (RANK[a.status] - RANK[b.status]) || (b.at - a.at))
   }
 
+  // what the page draws: what the hook wrote, and, with example agents on,
+  // theirs beside it -- never instead of it, so a real session is never
+  // hidden by a sample
+  function merge(real, demo) {
+    const sessions = [...(Array.isArray(real?.sessions) ? real.sessions : []), ...(Array.isArray(demo?.sessions) ? demo.sessions : [])]
+    return { ...(real || {}), sessions, demo: true }
+  }
+
   // sample agents, for a first look and for the screenshot in the README
   function demo(now) {
     const m = 60e3
@@ -228,5 +236,5 @@
     ] }
   }
 
-  globalThis.AgentOfficeModel = { TEXT, STATUSES, COLORS, DEFAULTS, HIDE, BRANDS, LEGEND, text, fill, hash, brand, status, ago, duration, resume, agents, counts, sorted, demo }
+  globalThis.AgentOfficeModel = { TEXT, STATUSES, COLORS, DEFAULTS, HIDE, BRANDS, LEGEND, text, fill, hash, brand, status, ago, duration, resume, agents, counts, sorted, demo, merge }
 })()
