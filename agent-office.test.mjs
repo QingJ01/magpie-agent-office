@@ -15,9 +15,25 @@ const pkg = JSON.parse(readFileSync(join(dir, "package.json"), "utf8"))
 // the page's classic scripts, as the page loads them
 const scope = {}
 new Function("globalThis", read("agents.js"))(scope)
+new Function("globalThis", read("scene.js"))(scope)
 new Function("globalThis", read("model.js"))(scope)
 const M = scope.AgentOfficeModel
 const A = scope.AgentOfficeAgents
+const { NAV, BLOCKERS, DESKS, SOFA, ZONE_SPOTS } = scope.AgentOfficeScene
+
+// every point of a way, sampled, is on a floor one may stand on
+const walkable = (pts) => {
+  for (let i = 0; i < pts.length - 1; i++) {
+    const [ax, ay] = pts[i], [bx, by] = pts[i + 1]
+    const n = Math.ceil(Math.hypot(bx - ax, by - ay) / 0.1)
+    for (let k = 0; k <= n; k++) {
+      const x = ax + ((bx - ax) * k) / n, y = ay + ((by - ay) * k) / n
+      if (!NAV.freeAt(x, y)) return `blocked at ${x.toFixed(2)},${y.toFixed(2)}`
+    }
+  }
+  return ""
+}
+const inside = ([x, y], [bx, by, bw, bd]) => x >= bx && x <= bx + bw && y >= by && y <= by + bd
 
 const tmps = []
 const tmp = () => { const d = mkdtempSync(join(tmpdir(), "agent-office-")); tmps.push(d); return d }
@@ -128,6 +144,34 @@ test("the scanner reads each agent's folder, and only what changed", () => {
   writeFileSync(join(cl, "c1.jsonl"), F.claudeDone)
   got = sc.scan(now + 1000)
   expect(got.find((s) => s.agent === "claude").phase).toBe("done")
+})
+
+// ---- walking -------------------------------------------------------------
+
+test("a worker walks around the desks, not through them", () => {
+  // from the airlock door to the far desk seat and to the sofa
+  const door = [0.6, 2.6]
+  for (const seat of [...DESKS.map((d) => d.seat), ...SOFA, ...ZONE_SPOTS]) {
+    const pts = NAV.path(door, [seat[0], seat[1]])
+    expect(pts.length).toBeGreaterThan(0)
+    const bad = walkable([[door[0], door[1]], ...pts])
+    expect(bad).toBe("")
+    // and the last way is the seat itself
+    expect(pts[pts.length - 1]).toEqual([seat[0], seat[1]])
+  }
+  // no way crosses a desk's body
+  const pts = NAV.path([0.6, 2.6], [11.4, 6.75])
+  for (const [x, y] of pts) for (const b of BLOCKERS) expect(inside([x, y], b)).toBe(false)
+})
+
+test("a way is no longer than it has to be, and a straight line stays straight", () => {
+  const direct = NAV.path([7.0, 8.6], [9.6, 8.6])
+  expect(direct.length).toBe(1)
+  const around = NAV.path([0.6, 2.6], [15.0, 11.0])
+  expect(around.length).toBeGreaterThan(1)
+  const len = (pts) => { let d = 0; let p = [0.6, 2.6]; for (const q of pts) { d += Math.hypot(q[0] - p[0], q[1] - p[1]); p = q } return d }
+  // no wild detour: the straight line is 18.6
+  expect(len(around)).toBeLessThan(18.6 * 1.9)
 })
 
 // ---- the page's model ---------------------------------------------------

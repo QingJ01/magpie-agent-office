@@ -129,6 +129,7 @@
       dot.style.background = M.COLORS[a.status]
       e.replaceChildren(I.mark(a.brand, 15), name, dot)
       e.dataset.status = a.status
+      e._w = 0 // measured again on the next frame
     }
     e.title = `${a.brand.name} · ${label(a)}`
     return e
@@ -139,12 +140,31 @@
     const seen = new Set()
     // in the small window only the ones that need you keep a name tag
     const few = floatHome ? new Set(state.list.filter((a) => a.status === "waiting" || a.status === "error" || a.key === state.open).map((a) => a.key)) : null
+    const shown = []
     for (const p of anchors) {
       const e = tags.get(p.key)
       if (!e) continue
-      seen.add(p.key)
-      const tf = `translate(${Math.round(p.x)}px, ${Math.round(p.y)}px) translate(-50%, -100%)`
-      if (e.style.transform !== tf) e.style.transform = tf
+      if (!e._w) e._w = e.offsetWidth || 90
+      shown.push({ e, p })
+    }
+    // two tags that would sit on each other are stacked, the lower one first
+    shown.sort((a, b) => a.p.y - b.p.y || a.p.x - b.p.x)
+    const placed = []
+    const H = 24
+    for (const it of shown) {
+      let y = it.p.y
+      for (let pass = 0; pass < 6; pass++) {
+        const hit = placed.find((q) => Math.abs(q.x - it.p.x) < (q.w + it.e._w) / 2 + 4 && Math.abs(q.y - y) < H)
+        if (!hit) break
+        y = hit.y - H
+      }
+      it.y = y
+      placed.push({ x: it.p.x, y, w: it.e._w })
+    }
+    for (const it of shown) {
+      seen.add(it.p.key)
+      const tf = `translate(${Math.round(it.p.x)}px, ${Math.round(it.y)}px) translate(-50%, -100%)`
+      if (it.e.style.transform !== tf) it.e.style.transform = tf
     }
     for (const [k, e] of tags) {
       const hide = !seen.has(k) || (few ? !few.has(k) : false)
