@@ -1,16 +1,34 @@
 # Agent Office · 我的 Agent 在干嘛
 
-A page in [magpie](https://usemagpie.ai)'s window that shows, live, what each of your coding agents is doing — read from the agents' own session files — as a little worker in a voxel space-station office (isometric 3D or top-down 2D) or as a list.
+[![Latest release](https://img.shields.io/github/v/release/QingJ01/magpie-agent-office)](https://github.com/QingJ01/magpie-agent-office/releases)
+[![magpie ≥ 0.1.1318](https://img.shields.io/badge/magpie-%E2%89%A5%200.1.1318-4f46e5)](https://usemagpie.ai)
+[![Tests](https://img.shields.io/badge/tests-30%20passing-22a35a)](#test)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+
+**一个住在 magpie 窗口里的实时 Agent 办公室。** 直接读取各 Agent 自己的会话记录，把正在思考、执行工具、等待批准或已经完成的工作，变成太空站里的小人。支持等距 3D、俯视 2D、实时列表和可拖动的悬浮小窗。
+
+A live activity dashboard for your coding agents inside [magpie](https://usemagpie.ai): every session becomes a little worker in a voxel space-station office, driven by the agent's own session files rather than guesses from network traffic.
 
 ![Agent Office in magpie's window](docs/in-magpie.png)
+
+## 快速开始 · Quick start
 
 ```sh
 magpie plugin add QingJ01/magpie-agent-office
 ```
 
-Then open **插件 › Agent 办公室** in the sidebar. Claude Code, Codex, DeepSeek Harness, Gemini CLI, Qwen Code, Pi, omp, Qoder, WorkBuddy and CodeBuddy show from their own session files, whatever model they use; any other agent shows while it works through magpie's models.
+安装后打开 **插件 › Agent 办公室**。默认显示真实会话，不是演示数据；第一次没有会话时会看到空办公室。想预览完整效果，可在 **设置 › 示例 Agent** 临时打开示例。
 
-The repository carries the `magpie-plugin` topic, so magpie also lists it under **插件 › 发现 › 非官方插件 · GitHub**.
+- **3D / 2D**：等距太空站或俯视图。
+- **办公室 / 列表**：实时状态、当前步骤、目录、模型和最近活动时间。
+- **点击小人或列表行**：查看任务、最近提问、工具步骤、回复摘要和续接命令。
+- **画中画**：可拖动、可缩放的悬浮小窗，✕ 或 Esc 放回。
+
+支持直接读取会话文件的 Agent：Claude Code、Codex、DeepSeek Harness、Gemini CLI、Qwen Code、Pi、omp、Qoder、WorkBuddy、CodeBuddy。其他 Agent（Cursor、OpenCode、Copilot、Kimi 等）在通过 magpie 的模型工作时也会显示。
+
+仓库带有 `magpie-plugin` topic，因此也会出现在 **插件 › 发现 › 非官方插件 · GitHub**。插件市场的收录进展见 [magpie-community/plugins](https://github.com/magpie-community/plugins)。
+
+[功能与状态](#where-a-worker-is-is-what-it-is-doing) · [数据来源](#how-it-knows) · [隐私](#privacy) · [设置](#options) · [限制](#what-it-cannot-know) · [开发测试](#test)
 
 ## Where a worker is, is what it is doing
 
