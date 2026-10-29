@@ -36,20 +36,26 @@
   const PANTS = ["#334155", "#1e3a8a", "#374151", "#3f3f46", "#78350f"]
 
   // ---- the room's furniture and where workers go ---------------------
-  // seats: [x, y, facing] — facing is the side of the worker one sees:
-  // "back" at a desk against the far wall, "front" facing the camera
+  // A seat is where a worker sits; `face` is the way they look — toward
+  // the desk, away from the sofa's back, into the room. The monitor, the
+  // chair's back and the head all follow from it (FACE below).
   const DESKS = [
-    { x: 3.2, y: 0.55, w: 1.7, d: 0.9, seat: [4.05, 1.95, "back"] },
-    { x: 5.9, y: 0.55, w: 1.7, d: 0.9, seat: [6.75, 1.95, "back"] },
-    { x: 8.6, y: 0.55, w: 1.7, d: 0.9, seat: [9.45, 1.95, "back"] },
-    { x: 11.3, y: 0.55, w: 1.7, d: 0.9, seat: [12.15, 1.95, "back"] },
-    // the island: two desks back to back
-    { x: 10.6, y: 4.6, w: 1.6, d: 0.8, seat: [11.4, 4.0, "back"], island: true },
-    { x: 12.4, y: 4.6, w: 1.6, d: 0.8, seat: [13.2, 4.0, "back"], island: true },
-    { x: 10.6, y: 5.4, w: 1.6, d: 0.8, seat: [11.4, 6.75, "front"], island: true, south: true },
-    { x: 12.4, y: 5.4, w: 1.6, d: 0.8, seat: [13.2, 6.75, "front"], island: true, south: true },
+    { x: 3.2, y: 0.55, w: 1.7, d: 0.9, seat: [4.05, 1.95], face: "n" },
+    { x: 5.9, y: 0.55, w: 1.7, d: 0.9, seat: [6.75, 1.95], face: "n" },
+    { x: 8.6, y: 0.55, w: 1.7, d: 0.9, seat: [9.45, 1.95], face: "n" },
+    { x: 11.3, y: 0.55, w: 1.7, d: 0.9, seat: [12.15, 1.95], face: "n" },
+    // the island: two desks back to back, the sitters facing each other
+    { x: 10.6, y: 4.6, w: 1.6, d: 0.8, seat: [11.4, 4.0], face: "s", island: true },
+    { x: 12.4, y: 4.6, w: 1.6, d: 0.8, seat: [13.2, 4.0], face: "s", island: true },
+    { x: 10.6, y: 5.4, w: 1.6, d: 0.8, seat: [11.4, 6.75], face: "n", island: true },
+    { x: 12.4, y: 5.4, w: 1.6, d: 0.8, seat: [13.2, 6.75], face: "n", island: true },
   ]
   const SOFA = [[1.1, 4.84], [1.1, 5.72], [1.1, 6.6], [1.1, 7.48], [1.1, 8.36], [3.1, 10.95], [4.3, 10.95]]
+  // Its backrest is to the west of the left sofa and to the south of the
+  // front one, so a sitter looks east and north respectively.
+  const SOFA_FACE = ["e", "e", "e", "e", "e", "n", "n"]
+  // a direction as a vector; the camera looks from +y, +x
+  const FACE = { n: [0, -1], s: [0, 1], e: [1, 0], w: [-1, 0] }
   // Entry/exit points are on the aisle side, never behind a backrest.
   const SOFA_APPROACH = SOFA.map(([x, y], i) => i < 5 ? [2.05, y] : [x, 10.0])
   const ZONE = { x: 4.2, y: 7.2, w: 4.4, d: 3.4 }
@@ -299,6 +305,15 @@
       const P = (a, c) => this.P(x + a * w, y + d, z + c * h)
       this.poly([P(u0, v0), P(u1, v0), P(u1, v1), P(u0, v1)], color)
     }
+    onBack(x, y, z, w, d, h, u0, v0, u1, v1, color) {
+      const P = (a, c) => this.P(x + a * w, y, z + c * h)
+      this.poly([P(u0, v0), P(u1, v0), P(u1, v1), P(u0, v1)], color)
+    }
+    onLeft(x, y, z, w, d, h, u0, v0, u1, v1, color) {
+      if (this.dim !== "3d") return
+      const P = (a, c) => this.P(x, y + a * d, z + c * h)
+      this.poly([P(u0, v0), P(u1, v0), P(u1, v1), P(u0, v1)], color)
+    }
     onRight(x, y, z, w, d, h, u0, v0, u1, v1, color) {
       if (this.dim !== "3d") return
       const P = (a, c) => this.P(x + w, y + a * d, z + c * h)
@@ -487,28 +502,32 @@
           // desk
           S.box(dk.x, dk.y, 0, dk.w, dk.d, 0.62, "#e5e7eb")
           S.box(dk.x + 0.06, dk.y + 0.06, 0.62, dk.w - 0.12, dk.d - 0.12, 0.05, "#f6c453")
-          // monitor: facing the seat
-          const my = dk.south ? dk.y + dk.d - 0.25 : dk.y + 0.12
+          // The monitor stands on the desk's far edge and its screen faces
+          // the sitter: a north-facing sitter reads the +y face, a
+          // south-facing one the -y face.
+          const south = dk.face === "s"
+          const my = south ? dk.y + dk.d - 0.25 : dk.y + 0.12
           const screen = who ? glow(who.color) : "#1f2937"
           S.box(dk.x + dk.w / 2 - 0.08, my + 0.05, 0.67, 0.16, 0.1, 0.22, "#4b5563")
           S.box(dk.x + 0.25, my, 0.85, dk.w - 0.5, 0.12, 0.5, "#374151")
-          if (dk.south) S.onFront(dk.x + 0.25, my, 0.85, dk.w - 0.5, 0.12, 0.5, 0.06, 0.1, 0.94, 0.9, "#111827")
-          else S.onFront(dk.x + 0.25, my, 0.85, dk.w - 0.5, 0.12, 0.5, 0.06, 0.1, 0.94, 0.9, screen)
-          if (who && !dk.south) {
+          const face = south ? "onBack" : "onFront"
+          S[face](dk.x + 0.25, my, 0.85, dk.w - 0.5, 0.12, 0.5, 0.06, 0.1, 0.94, 0.9, screen)
+          if (who) {
             // lines of code scrolling on the screen
             for (let l = 0; l < 3; l++) {
               const u = 0.12 + 0.15 * ((l + Math.floor(this.t * 3)) % 3)
-              S.onFront(dk.x + 0.25, my, 0.85, dk.w - 0.5, 0.12, 0.5, 0.12, 0.25 + l * 0.2, 0.12 + u * 3, 0.32 + l * 0.2, "rgba(255,255,255,.55)")
+              S[face](dk.x + 0.25, my, 0.85, dk.w - 0.5, 0.12, 0.5, 0.12, 0.25 + l * 0.2, 0.12 + u * 3, 0.32 + l * 0.2, "rgba(255,255,255,.55)")
             }
           }
         })
-        // the chair, its own drawable so the worker sits in it
+        // the chair, its own drawable so the worker sits in it; its back
+        // stands behind the sitter, opposite the way they look
         const [cx, cy] = dk.seat
         out.push({ k: this.depth(cx, cy) - 0.05, fn: () => {
           S.box(cx - 0.28, cy - 0.28, 0, 0.56, 0.56, 0.36, "#9ca3af")
-          if (dk.south) S.box(cx - 0.28, cy + 0.2, 0.36, 0.56, 0.1, 0.5, "#6b7280")
         } })
-        if (!dk.south) out.push({ k: this.depth(cx, cy + 0.4), fn: () => S.box(cx - 0.28, cy + 0.22, 0.36, 0.56, 0.1, 0.5, "#6b7280") })
+        const backY = dk.face === "s" ? cy - 0.32 : cy + 0.22
+        out.push({ k: this.depth(cx, backY + 0.06), fn: () => S.box(cx - 0.28, backY, 0.36, 0.56, 0.1, 0.5, "#6b7280") })
       }
       // A sofa and its seated occupants are one compositing group. Sorting
       // cushions and people independently lets the next cushion/armrest
@@ -620,7 +639,13 @@
       const seen = new Set()
       const used = { seat: new Set(), sofa: new Set(), zone: new Set(), err: new Set(), wander: new Set() }
       const kindOf = (a) => (a.status === "waiting" ? "zone" : a.status === "error" ? "err" : a.status === "done" ? "sofa" : "seat")
-      const spots = { seat: DESKS.map((d) => d.seat), sofa: SOFA, zone: ZONE_SPOTS, err: ERROR_SPOTS, wander: WANDER }
+      const spots = {
+        seat: DESKS.map((d) => [d.seat[0], d.seat[1], d.face || "n"]),
+        sofa: SOFA.map(([x, y], i) => [x, y, SOFA_FACE[i]]),
+        zone: ZONE_SPOTS.map(([x, y]) => [x, y, "s"]),
+        err: ERROR_SPOTS.map(([x, y]) => [x, y, "s"]),
+        wander: WANDER.map(([x, y]) => [x, y, "s"]),
+      }
       // the ones whose place is still theirs keep it
       for (const a of list) {
         const w = this.workers.get(a.key)
@@ -663,7 +688,7 @@
         const to = tx + "," + ty
         if (w.pathTo !== to) { w.pathTo = to; w.path = null }
         w.tx = tx; w.ty = ty
-        w.facing = facing || (w.kind === "sofa" ? "front" : "front")
+        w.facing = facing || "s"
         if (w.x == null) { w.x = tx; w.y = ty }
       }
       for (const k of [...this.workers.keys()]) if (!seen.has(k)) this.workers.delete(k)
@@ -728,7 +753,7 @@
       const sitting = !w.walking && (w.kind === "seat" || w.kind === "sofa")
       const pose = idlePose(w, this.t, this.reducedMotion)
       const sleeping = sitting && w.kind === "sofa" && (a.idle || pose.kind === "doze")
-      const back = !w.walking && w.facing === "back"
+      const f0 = w.walking ? "s" : (w.facing || "s")
       let { x, y } = w
       let z = 0
       if (w.walking) z = Math.abs(Math.sin(t * 9)) * 0.06
@@ -752,29 +777,40 @@
         S.g.restore()
       }
       let hip = 0.34
+      const dir = FACE[w.facing] || FACE.s
+      const swing = pose.kind === "swing" ? Math.sin(pose.phase * 5) * pose.amount * 0.09 : 0
       if (sitting) {
         hip = 0.4
-        // thighs forward, then shins down
-        const fy = back ? -0.28 : 0.28
-        S.box(bx + 0.04, by + (back ? -0.22 : 0.1), hip - 0.02, 0.16, 0.42, 0.13, w.pants)
-        S.box(bx + bw - 0.2, by + (back ? -0.22 : 0.1), hip - 0.02, 0.16, 0.42, 0.13, w.pants)
-        if (!back) {
-          const swing = pose.kind === "swing" ? Math.sin(pose.phase * 5) * pose.amount * 0.09 : 0
-          S.box(bx + 0.04, by + bd + 0.18 + swing, 0, 0.16, 0.14, hip, w.pants)
-          S.box(bx + bw - 0.2, by + bd + 0.18 - swing, 0, 0.16, 0.14, hip, w.pants)
+        const thigh = 0.4, legW = 0.16
+        if (dir[1] !== 0) {
+          // thighs out along y, shins down at their far end
+          const ty = dir[1] > 0 ? by + bd - 0.1 : by - thigh + 0.1
+          S.box(bx + 0.04, ty, hip - 0.02, legW, thigh, 0.13, w.pants)
+          S.box(bx + bw - legW - 0.04, ty, hip - 0.02, legW, thigh, 0.13, w.pants)
+          const sy = dir[1] > 0 ? ty + thigh - 0.14 : ty
+          S.box(bx + 0.04, sy + swing, 0, legW, 0.14, hip, w.pants)
+          S.box(bx + bw - legW - 0.04, sy - swing, 0, legW, 0.14, hip, w.pants)
+        } else {
+          // thighs out along x, shins down at their far end
+          const tx = dir[0] > 0 ? bx + bw - 0.1 : bx - thigh + 0.1
+          S.box(tx, by + 0.05, hip - 0.02, thigh, 0.16, 0.13, w.pants)
+          S.box(tx, by + bd - 0.21, hip - 0.02, thigh, 0.16, 0.13, w.pants)
+          const sx = dir[0] > 0 ? tx + thigh - 0.14 : tx
+          S.box(sx, by + 0.05 + swing, 0, 0.14, 0.16, hip, w.pants)
+          S.box(sx, by + bd - 0.21 - swing, 0, 0.14, 0.16, hip, w.pants)
         }
-        void fy
       } else {
-        const swing = w.walking ? Math.sin(t * 9) * 0.08 : 0
-        S.box(bx + 0.04, by + 0.07 + swing, z, 0.16, 0.16, hip, w.pants)
-        S.box(bx + bw - 0.2, by + 0.07 - swing, z, 0.16, 0.16, hip, w.pants)
+        const step = w.walking ? Math.sin(t * 9) * 0.08 : 0
+        S.box(bx + 0.04, by + 0.07 + step, z, 0.16, 0.16, hip, w.pants)
+        S.box(bx + bw - 0.2, by + 0.07 - step, z, 0.16, 0.16, hip, w.pants)
       }
       const stretch = pose.kind === "stretch" ? pose.amount : 0
       const zb = (sitting ? hip + 0.08 : hip) + z + stretch * 0.07
       const sleepTilt = sleeping ? 0.06 : 0
       // body
       S.box(bx, by, zb, bw, bd, 0.42, w.color)
-      if (!back) S.onFront(bx, by, zb, bw, bd, 0.42, 0.38, 0.55, 0.62, 0.95, "rgba(255,255,255,.85)")
+      if (f0 === "s") S.onFront(bx, by, zb, bw, bd, 0.42, 0.38, 0.55, 0.62, 0.95, "rgba(255,255,255,.85)")
+      else if (f0 === "e") S.onRight(bx, by, zb, bw, bd, 0.42, 0.38, 0.55, 0.62, 0.95, "rgba(255,255,255,.85)")
       // arms
       let armUp = 0
       if (st === "waiting" && !w.walking) armUp = 1
@@ -788,31 +824,46 @@
       } else {
         S.box(bx + bw + stretch * 0.06, by + 0.06 - ay, zb + 0.08 + stretch * 0.42, 0.12, 0.16, 0.32, shade(w.color, -0.1))
       }
-      // head
+      // head: a sitter facing the camera shows a face, one facing away the
+      // back of the head, one facing east a profile. A flat (2D) view can
+      // only show the +y face, so east/west are drawn as a face there.
       const hs = 0.46
       const glance = pose.kind === "look" ? Math.sin(pose.phase * 2.2) * pose.amount * 0.07 : 0
       const hx = x - hs / 2 + sleepTilt + glance, hy = y - hs / 2 + (sleeping ? 0.04 : 0)
       const hz = zb + 0.42 - (sleeping ? 0.06 : 0) - (pose.kind === "doze" ? pose.amount * 0.07 : 0)
       S.box(hx, hy, hz, hs, hs, hs, w.skin)
-      if (back) {
-        S.onFront(hx, hy, hz, hs, hs, hs, 0, 0.15, 1, 1, w.hair)
-        S.onRight(hx, hy, hz, hs, hs, hs, 0, 0.15, 1, 1, w.hair)
-      } else {
-        // fringe, eyes, cheeks
-        S.onFront(hx, hy, hz, hs, hs, hs, 0, 0.78, 1, 1, w.hair)
-        S.onRight(hx, hy, hz, hs, hs, hs, 0, 0.45, 1, 1, w.hair)
+      const f = this.dim === "2d" && (w.facing === "e" || w.facing === "w") ? "s" : (w.facing || "s")
+      const eyes = (cols) => {
+        const draw = f === "s" ? "onFront" : "onRight"
+        if (f !== "s" && f !== "e") return
         if (sleeping) {
-          S.onFront(hx, hy, hz, hs, hs, hs, 0.18, 0.5, 0.38, 0.55, "#1f2937")
-          S.onFront(hx, hy, hz, hs, hs, hs, 0.62, 0.5, 0.82, 0.55, "#1f2937")
-        } else {
-          const blink = (Math.sin(t * 1.3) > 0.97) ? 0.03 : 0.14
-          S.onFront(hx, hy, hz, hs, hs, hs, 0.22, 0.45, 0.34, 0.45 + blink, "#1f2937")
-          S.onFront(hx, hy, hz, hs, hs, hs, 0.66, 0.45, 0.78, 0.45 + blink, "#1f2937")
+          S[draw](hx, hy, hz, hs, hs, hs, cols[0], 0.5, cols[0] + 0.2, 0.55, "#1f2937")
+          S[draw](hx, hy, hz, hs, hs, hs, cols[1], 0.5, cols[1] + 0.2, 0.55, "#1f2937")
+          return
+        }
+        const blink = (Math.sin(t * 1.3) > 0.97) ? 0.03 : 0.14
+        S[draw](hx, hy, hz, hs, hs, hs, cols[0], 0.45, cols[0] + 0.12, 0.45 + blink, "#1f2937")
+        S[draw](hx, hy, hz, hs, hs, hs, cols[1], 0.45, cols[1] + 0.12, 0.45 + blink, "#1f2937")
+      }
+      if (f === "s") {
+        S.onFront(hx, hy, hz, hs, hs, hs, 0, 0.78, 1, 1, w.hair) // fringe
+        S.onRight(hx, hy, hz, hs, hs, hs, 0, 0.45, 1, 1, w.hair)
+        eyes([0.22, 0.66])
+        if (!sleeping) {
           S.onFront(hx, hy, hz, hs, hs, hs, 0.12, 0.3, 0.26, 0.38, "rgba(244,114,182,.45)")
           S.onFront(hx, hy, hz, hs, hs, hs, 0.74, 0.3, 0.88, 0.38, "rgba(244,114,182,.45)")
         }
-        if (w.long) S.onRight(hx, hy, hz, hs, hs, hs, 0, 0, 1, 0.5, w.hair)
+      } else if (f === "e") {
+        // looking east: the camera sees the right side of the head
+        S.onFront(hx, hy, hz, hs, hs, hs, 0, 0.2, 1, 1, w.hair)
+        S.onRight(hx, hy, hz, hs, hs, hs, 0, 0.72, 1, 1, w.hair)
+        eyes([0.3, 0.62])
+      } else {
+        // facing away: hair on both faces the camera can see
+        S.onFront(hx, hy, hz, hs, hs, hs, 0, 0.15, 1, 1, w.hair)
+        S.onRight(hx, hy, hz, hs, hs, hs, 0, 0.15, 1, 1, w.hair)
       }
+      if (w.long) S.onRight(hx, hy, hz, hs, hs, hs, 0, 0, 1, 0.5, w.hair)
       // hair on top
       S.box(hx - 0.03, hy - 0.03, hz + hs, hs + 0.06, hs + 0.06, 0.1, w.hair)
       const top = S.P(x, y, (sitting ? 0.48 : 0.34) + 0.42 + hs + 0.1)
@@ -932,5 +983,5 @@
     }
   }
 
-  globalThis.AgentOfficeScene = { Scene, ROOM, DESKS, SOFA, ZONE, ZONE_SPOTS, NAV, BLOCKERS, SOFA_APPROACH, idlePose }
+  globalThis.AgentOfficeScene = { Scene, ROOM, DESKS, SOFA, ZONE, ZONE_SPOTS, NAV, BLOCKERS, SOFA_APPROACH, SOFA_FACE, DESKS, idlePose }
 })()

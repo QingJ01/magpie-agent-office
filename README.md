@@ -27,6 +27,10 @@ The counts at the top are how many need you (waiting for an approval or an answe
 
 ![A real session's panel](docs/panel.png)
 
+## Which way each worker faces
+
+A seat says which way its owner looks: at a desk the sitter faces the desk, so the monitor stands on the desk's far edge with its lit side toward them and the chair's back behind; on the left wall's sofa they look east and on the front sofa north, away from the backrest. The head shows a face when that side is toward the camera, a profile when it is east, and the back of the head when it is away.
+
 ## Movement and idle gestures
 
 Completed agents occasionally stretch, glance sideways, swing their legs or nod off. Their schedules differ, and these gestures pause while walking or working. The new gestures respect the system's reduced-motion preference; name tags remain steady.
