@@ -15,6 +15,7 @@
     "page/icons",
     "lib",
     "office.hooks.mjs",
+    "CHANGELOG.md",
     "README.md",
     "LICENSE"
   ],
