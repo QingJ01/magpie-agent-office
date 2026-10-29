@@ -50,6 +50,8 @@
     { x: 12.4, y: 5.4, w: 1.6, d: 0.8, seat: [13.2, 6.75, "front"], island: true, south: true },
   ]
   const SOFA = [[1.1, 4.84], [1.1, 5.72], [1.1, 6.6], [1.1, 7.48], [1.1, 8.36], [3.1, 10.95], [4.3, 10.95]]
+  // Entry/exit points are on the aisle side, never behind a backrest.
+  const SOFA_APPROACH = SOFA.map(([x, y], i) => i < 5 ? [2.05, y] : [x, 10.0])
   const ZONE = { x: 4.2, y: 7.2, w: 4.4, d: 3.4 }
   const ZONE_SPOTS = []
   for (let j = 0; j < 3; j++) for (let i = 0; i < 4; i++) ZONE_SPOTS.push([ZONE.x + 0.6 + i * 1.05 + (j % 2) * 0.3, ZONE.y + 0.6 + j * 1.05])
@@ -61,8 +63,8 @@
   // worker goes, which are free even inside a piece of furniture (a seat).
   const BLOCKERS = [
     ...DESKS.map((d) => [d.x, d.y, d.w, d.d]),
-    [0.35, 4.1, 0.4, 5.0], // the backrest of the sofa along the left wall
-    [2.5, 11.35, 2.4, 0.35], // the backrest of the sofa in front
+    [0, 4.1, 1.5, 5.0], // full sofa and the gap behind its backrest
+    [2.5, 10.55, 2.4, 1.45], // full sofa and rear wall gap
     [6.3, 5.2, 1.6, 1.6], // the holo table
     [1.85, 9.65, 0.9, 0.9], // drums
     [8.4, 10.5, 1.35, 1.25], // crates
@@ -70,7 +72,7 @@
     [14.3, 6.6, 1.2, 1.6], // the broken console
     [14.0, 0.5, 1.6, 1.0], // the console on the far wall
   ]
-  const FREE = [...DESKS.map((d) => d.seat), ...SOFA, ...ZONE_SPOTS, ...ERROR_SPOTS, ...WANDER, DOOR]
+  const FREE = [...DESKS.map((d) => d.seat), ...SOFA_APPROACH, ...ZONE_SPOTS, ...ERROR_SPOTS, ...WANDER, DOOR]
 
   // A coarse grid of where a worker may walk, and the shortest way across
   // it: eight neighbours, diagonals only when both sides are free, then
@@ -106,16 +108,34 @@
       }
       return [i0, j0]
     }
+    // Visit every crossed grid cell, including both sides of a corner.
+    // Coarse distance sampling can miss a tiny slice of an obstacle.
     const clear = (a, b) => {
-      const n = Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / (CELL * 0.5))
-      for (let k = 1; k < n; k++) {
-        const x = a[0] + ((b[0] - a[0]) * k) / n, y = a[1] + ((b[1] - a[1]) * k) / n
-        if (!freeAt(x, y)) return false
+      const dx = b[0] - a[0], dy = b[1] - a[1]
+      const cuts = [0, 1]
+      for (const [start, delta] of [[a[0], dx], [a[1], dy]]) {
+        if (Math.abs(delta) < 1e-10) continue
+        const lo = Math.min(start, start + delta), hi = Math.max(start, start + delta)
+        for (let n = Math.floor(lo / CELL) + 1; n * CELL < hi; n++) {
+          cuts.push((n * CELL - start) / delta)
+        }
       }
-      return true
+      cuts.sort((x, y) => x - y)
+      let previous = null
+      for (let k = 0; k < cuts.length - 1; k++) {
+        if (cuts[k + 1] - cuts[k] < 1e-10) continue
+        const t = (cuts[k] + cuts[k + 1]) / 2
+        const i = Math.floor((a[0] + dx * t) / CELL), j = Math.floor((a[1] + dy * t) / CELL)
+        if (!free(i, j)) return false
+        if (previous && i !== previous[0] && j !== previous[1] &&
+            (!free(i, previous[1]) || !free(previous[0], j))) return false
+        previous = [i, j]
+      }
+      return freeAt(...a) && freeAt(...b)
     }
     // from one point to another, as the corners to walk by
-    function path(from, to) {
+    function corridor(from, to) {
+      if (!freeAt(...from) || !freeAt(...to)) return []
       const [si, sj] = open(from[0], from[1])
       const [gi, gj] = open(to[0], to[1])
       const start = sj * w + si, goal = gj * w + gi
@@ -139,7 +159,7 @@
           q.push(n)
         }
       }
-      if (prev[goal] === -1) return [[to[0], to[1]]] // no way: straight there
+      if (prev[goal] === -1) return [] // never fall back to walking through furniture
       const cells = []
       for (let c = goal; c !== start; c = prev[c]) cells.push(c)
       cells.push(start)
@@ -159,13 +179,38 @@
       if (!out.length) out.push(pts[pts.length - 1])
       return out
     }
-    return { w, h, CELL, blocked, free, freeAt, path, open }
+    const seatAt = p => SOFA.findIndex(q => Math.hypot(q[0] - p[0], q[1] - p[1]) < 0.04)
+    function path(from, to, transit = null) {
+      if (Math.hypot(to[0] - from[0], to[1] - from[1]) < 0.001) return []
+      const entry = seatAt(to)
+      const exit = Number.isInteger(transit) ? transit : seatAt(from)
+      const a = exit >= 0 ? SOFA_APPROACH[exit] : from
+      const b = entry >= 0 ? SOFA_APPROACH[entry] : to
+      const middle = corridor(a, b)
+      if (!middle.length) return []
+      // Third coordinate identifies a controlled boarding/alighting segment.
+      return [...(exit >= 0 ? [[...a, exit]] : []), ...middle,
+        ...(entry >= 0 ? [[...to, entry]] : [])]
+    }
+    return { w, h, CELL, blocked, free, freeAt, path, open, clear }
+
   })()
 
   function rnd(seed, i) {
     let x = (seed ^ Math.imul(i + 1, 0x9e3779b1)) >>> 0
     x ^= x >>> 16; x = Math.imul(x, 0x85ebca6b) >>> 0; x ^= x >>> 13
     return (x >>> 0) / 4294967296
+  }
+
+  function idlePose(w, time, reduced = false) {
+    const neutral = { kind: "rest", amount: 0, phase: 0 }
+    if (reduced || w.walking || w.a.status !== "done") return neutral
+    const seed = w.a.seed || 0
+    const cycle = Math.floor((time + (seed % 19)) / 22)
+    const phase = ((time + (seed % 19)) % 22 + 22) % 22
+    if (phase >= 4) return neutral
+    return { kind: ["stretch", "look", "swing", "doze"][(seed + cycle) % 4],
+      amount: Math.sin(Math.PI * phase / 4), phase }
   }
 
   class Scene {
@@ -179,6 +224,7 @@
       this.last = 0
       this.running = false
       this.first = true
+      this.reducedMotion = globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches || false
       this.stars = Array.from({ length: 140 }, (_, i) => [rnd(7, i), rnd(11, i), rnd(13, i)])
       this.resize()
     }
@@ -554,10 +600,19 @@
           this.box(0.7, 8.8, 0, 0.8, 0.3, 0.7, "#d99a1e")
         }
         const seated = [...this.workers.values()].filter(w =>
-          w.kind === "sofa" && !w.walking && (w.slot >= 5) === front)
+          this.sofaGroup(w) === (front ? 1 : 0))
         seated.sort((a, b) => this.depth(a.x, a.y) - this.depth(b.x, b.y))
         for (const w of seated) this.worker(w)
       } }
+    }
+
+    sofaGroup(w) {
+      if (Number.isInteger(w.transit)) return w.transit >= 5 ? 1 : 0
+      if (w.kind === "sofa" && !w.walking) return w.slot >= 5 ? 1 : 0
+      // The aisle is in front: a distant backrest must not cover its walkers.
+      if (w.x >= 1.5 && w.x <= 2.5 && w.y >= 4.1 && w.y <= 9.1) return 0
+      if (w.x >= 2.5 && w.x <= 4.9 && w.y >= 9.8 && w.y <= 10.55) return 1
+      return -1
     }
 
     // ---- workers -------------------------------------------------------
@@ -621,9 +676,11 @@
     step(dt) {
       const v = 2.6 * dt
       for (const w of this.workers.values()) {
-        if (!w.path) w.path = NAV.path([w.x, w.y], [w.tx, w.ty])
+        if (!w.path) w.path = NAV.path([w.x, w.y], [w.tx, w.ty], w.transit)
+        w.transit = w.path[0]?.[2] ?? null
         let left = v
         while (left > 1e-6 && w.path.length) {
+          w.transit = w.path[0][2] ?? null
           const [px, py] = w.path[0]
           const dx = px - w.x, dy = py - w.y
           const d = Math.hypot(dx, dy)
@@ -636,6 +693,7 @@
           }
         }
         w.walking = w.path.length > 0
+        if (!w.walking) w.transit = null
       }
       this.spread()
     }
@@ -649,6 +707,7 @@
         for (let j = i + 1; j < ws.length; j++) {
           const a = ws[i], b = ws[j]
           if (!a.walking && !b.walking) continue
+          if (Number.isInteger(a.transit) || Number.isInteger(b.transit)) continue
           let dx = b.x - a.x, dy = b.y - a.y
           let d = Math.hypot(dx, dy)
           if (d >= min) continue
@@ -657,8 +716,8 @@
           const ux = dx / d, uy = dy / d
           const ax = a.x - ux * push, ay = a.y - uy * push
           const bx = b.x + ux * push, by = b.y + uy * push
-          if (NAV.freeAt(ax, ay)) { a.x = ax; a.y = ay }
-          if (NAV.freeAt(bx, by)) { b.x = bx; b.y = by }
+          if (a.walking && NAV.clear([a.x, a.y], [ax, ay]) && NAV.freeAt(ax, ay)) { a.x = ax; a.y = ay }
+          if (b.walking && NAV.clear([b.x, b.y], [bx, by]) && NAV.freeAt(bx, by)) { b.x = bx; b.y = by }
         }
       }
     }
@@ -667,7 +726,8 @@
       const S = this, t = this.t + w.phase, a = w.a
       const st = a.status
       const sitting = !w.walking && (w.kind === "seat" || w.kind === "sofa")
-      const sleeping = sitting && w.kind === "sofa" && a.idle
+      const pose = idlePose(w, this.t, this.reducedMotion)
+      const sleeping = sitting && w.kind === "sofa" && (a.idle || pose.kind === "doze")
       const back = !w.walking && w.facing === "back"
       let { x, y } = w
       let z = 0
@@ -699,8 +759,9 @@
         S.box(bx + 0.04, by + (back ? -0.22 : 0.1), hip - 0.02, 0.16, 0.42, 0.13, w.pants)
         S.box(bx + bw - 0.2, by + (back ? -0.22 : 0.1), hip - 0.02, 0.16, 0.42, 0.13, w.pants)
         if (!back) {
-          S.box(bx + 0.04, by + bd + 0.18, 0, 0.16, 0.14, hip, w.pants)
-          S.box(bx + bw - 0.2, by + bd + 0.18, 0, 0.16, 0.14, hip, w.pants)
+          const swing = pose.kind === "swing" ? Math.sin(pose.phase * 5) * pose.amount * 0.09 : 0
+          S.box(bx + 0.04, by + bd + 0.18 + swing, 0, 0.16, 0.14, hip, w.pants)
+          S.box(bx + bw - 0.2, by + bd + 0.18 - swing, 0, 0.16, 0.14, hip, w.pants)
         }
         void fy
       } else {
@@ -708,7 +769,8 @@
         S.box(bx + 0.04, by + 0.07 + swing, z, 0.16, 0.16, hip, w.pants)
         S.box(bx + bw - 0.2, by + 0.07 - swing, z, 0.16, 0.16, hip, w.pants)
       }
-      const zb = (sitting ? hip + 0.08 : hip) + z
+      const stretch = pose.kind === "stretch" ? pose.amount : 0
+      const zb = (sitting ? hip + 0.08 : hip) + z + stretch * 0.07
       const sleepTilt = sleeping ? 0.06 : 0
       // body
       S.box(bx, by, zb, bw, bd, 0.42, w.color)
@@ -718,18 +780,19 @@
       if (st === "waiting" && !w.walking) armUp = 1
       const typing = sitting && w.kind === "seat" && (st === "executing" || st === "replying")
       const ay = typing ? Math.sin(t * 18) * 0.03 : 0
-      S.box(bx - 0.12, by + 0.06 + ay, zb + 0.08, 0.12, 0.16, 0.32, shade(w.color, -0.1))
+      S.box(bx - 0.12 - stretch * 0.06, by + 0.06 + ay, zb + 0.08 + stretch * 0.42, 0.12, 0.16, 0.32, shade(w.color, -0.1))
       if (armUp) {
         const wave = Math.sin(t * 10) * 0.08
         S.box(bx + bw, by + 0.06 + wave, zb + 0.32, 0.12, 0.14, 0.42, shade(w.color, -0.1))
         S.box(bx + bw, by + 0.06 + wave, zb + 0.74, 0.12, 0.14, 0.12, w.skin)
       } else {
-        S.box(bx + bw, by + 0.06 - ay, zb + 0.08, 0.12, 0.16, 0.32, shade(w.color, -0.1))
+        S.box(bx + bw + stretch * 0.06, by + 0.06 - ay, zb + 0.08 + stretch * 0.42, 0.12, 0.16, 0.32, shade(w.color, -0.1))
       }
       // head
       const hs = 0.46
-      const hx = x - hs / 2 + sleepTilt, hy = y - hs / 2 + (sleeping ? 0.04 : 0)
-      const hz = zb + 0.42 - (sleeping ? 0.06 : 0)
+      const glance = pose.kind === "look" ? Math.sin(pose.phase * 2.2) * pose.amount * 0.07 : 0
+      const hx = x - hs / 2 + sleepTilt + glance, hy = y - hs / 2 + (sleeping ? 0.04 : 0)
+      const hz = zb + 0.42 - (sleeping ? 0.06 : 0) - (pose.kind === "doze" ? pose.amount * 0.07 : 0)
       S.box(hx, hy, hz, hs, hs, hs, w.skin)
       if (back) {
         S.onFront(hx, hy, hz, hs, hs, hs, 0, 0.15, 1, 1, w.hair)
@@ -752,7 +815,7 @@
       }
       // hair on top
       S.box(hx - 0.03, hy - 0.03, hz + hs, hs + 0.06, hs + 0.06, 0.1, w.hair)
-      const top = S.P(x, y, hz + hs + 0.1)
+      const top = S.P(x, y, (sitting ? 0.48 : 0.34) + 0.42 + hs + 0.1)
       w.screen = { x: top[0], y: top[1], r: S.s * 0.5, foot: S.P(x, y, 0) }
     }
 
@@ -829,7 +892,7 @@
       // a person sitting is ordered by the seat's front edge, not their
       // middle, so their legs are over the cushion and not inside it
       for (const w of this.workers.values()) {
-        if (w.kind === "sofa" && !w.walking) continue // drawn in sofaLayer
+        if (this.sofaGroup(w) >= 0) continue // boarding, seated, or alighting
         const sits = !w.walking && (w.kind === "seat" || w.kind === "sofa")
         items.push({ k: this.depth(w.x, w.y + (sits ? 0.34 : 0)) + 0.02, fn: () => this.worker(w) })
       }
@@ -869,5 +932,5 @@
     }
   }
 
-  globalThis.AgentOfficeScene = { Scene, ROOM, DESKS, SOFA, ZONE, ZONE_SPOTS, NAV, BLOCKERS }
+  globalThis.AgentOfficeScene = { Scene, ROOM, DESKS, SOFA, ZONE, ZONE_SPOTS, NAV, BLOCKERS, SOFA_APPROACH, idlePose }
 })()

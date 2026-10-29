@@ -154,10 +154,11 @@ test("a worker walks around the desks, not through them", () => {
   for (const seat of [...DESKS.map((d) => d.seat), ...SOFA, ...ZONE_SPOTS]) {
     const pts = NAV.path(door, [seat[0], seat[1]])
     expect(pts.length).toBeGreaterThan(0)
-    const bad = walkable([[door[0], door[1]], ...pts])
+    const floorPath = pts.filter(p => p[2] === undefined)
+    const bad = walkable([[door[0], door[1]], ...floorPath])
     expect(bad).toBe("")
-    // and the last way is the seat itself
-    expect(pts[pts.length - 1]).toEqual([seat[0], seat[1]])
+    // Boarding is tested separately: it approaches perpendicular to the seat.
+    expect(pts[pts.length - 1].slice(0, 2)).toEqual([seat[0], seat[1]])
   }
   // no way crosses a desk's body
   const pts = NAV.path([0.6, 2.6], [11.4, 6.75])

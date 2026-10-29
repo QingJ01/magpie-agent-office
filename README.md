@@ -27,6 +27,12 @@ The counts at the top are how many need you (waiting for an approval or an answe
 
 ![A real session's panel](docs/panel.png)
 
+## Movement and idle gestures
+
+Completed agents occasionally stretch, glance sideways, swing their legs or nod off. Their schedules differ, and these gestures pause while walking or working. The new gestures respect the system's reduced-motion preference; name tags remain steady.
+
+Sofas are blocked to normal foot traffic, including the space behind their backrests. Each seat has a front approach: walk through the aisle, board from the front, then leave by that same approach. Rerouting midway through boarding first returns to the aisle. Path smoothing checks every crossed grid cell, and an unreachable destination never falls back to walking straight through furniture.
+
 ## How it knows
 
 From each agent's **own session file**, as the agent writes it — not a guess from traffic. The plugin's host part (it runs in magpie's plugin host while magpie is open) reads them every 1.5 seconds, only what changed:
