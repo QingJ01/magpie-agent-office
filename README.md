@@ -113,10 +113,10 @@ magpie frames a plugin's page with `allow=""` and `sandbox="allow-scripts"`, so 
 | `showDone` | keep finished agents on the sofa |
 | `hideAfter` | when a finished or failed agent leaves: `1h`, `6h`, `24h`, `never` |
 | `text` | keep prompts and replies (`false`: statuses and tool names only) |
-| `remote` | the gateway part also records requests from other computers and gateway keys |
+| `remote` | count every agent this magpie serves, not only the ones running on this computer; those are seen as gateway traffic, not as session files (Settings › Every agent on this magpie) |
 | `approvalAfterSec` | for an agent seen only through the gateway: how long its tools run before it counts as waiting for you (90) |
 
-The page saves the first five as you change them; a change restarts the plugin's host (magpie's options do), so it waits until it has been left alone a moment.
+The page saves these as you change them — except `approvalAfterSec`, which is set in the config; a change restarts the plugin's host (magpie's options do), so it waits until it has been left alone a moment.
 
 ## What it cannot know
 
