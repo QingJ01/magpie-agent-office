@@ -87,14 +87,17 @@ export function snapshot(now = Date.now()) {
     }
   }
   // what only the gateway saw: an agent whose files aren't read here
+  let dropped = 0
   if (tracker) {
-    for (const g of tracker.snapshot(now).sessions) {
+    const tracked = tracker.snapshot(now)
+    dropped = tracked.dropped || 0
+    for (const g of tracked.sessions) {
       if (seen.has(g.key) || fileAgents.has(g.agent)) continue
       seen.add(g.key)
       sessions.push({ ...g, source: "gateway" })
     }
   }
-  return { v: 2, written: now, text, sessions }
+  return { v: 2, written: now, text, dropped, sessions }
 }
 
 export function write(now = Date.now()) {

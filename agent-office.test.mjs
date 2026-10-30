@@ -314,6 +314,21 @@ test("the gateway part still reads replies in each API", () => {
   expect(t.request({ model: "m", tools: [1], messages: [{ role: "user", content: "x" }] }, { origin: "remote", agent: "a", session: "s" }, 1)).toBeNull()
 })
 
+test("the tracker counts what it drops, so the page can say so", () => {
+  const t = createTracker({ text: true, remote: false })
+  const ctx = { origin: "remote", agent: "a", session: "s", protocol: "anthropic", model: "m" }
+  expect(t.request({ messages: [{ role: "user", content: "x" }] }, ctx, 1)).toBeNull()
+  expect(t.request({ messages: [{ role: "user", content: "x" }] }, ctx, 1)).toBeNull()
+  expect(t.snapshot(1)).toMatchObject({ dropped: 2, sessions: [] })
+  // a request with no origin at all is taken as local, and is not counted
+  expect(t.request({ messages: [{ role: "user", content: "x" }] }, { agent: "b", session: "s2" }, 1)).not.toBeNull()
+  expect(t.snapshot(1).dropped).toBe(2)
+  // with remote on nothing is dropped
+  const u = createTracker({ text: true, remote: true })
+  expect(u.request({ messages: [{ role: "user", content: "x" }] }, ctx, 1)).not.toBeNull()
+  expect(u.snapshot(1).dropped).toBe(0)
+})
+
 test("live.js is no file of the package's", () => {
   expect(pkg.files.some((f) => f.includes("live"))).toBe(false)
   expect(readFileSync(join(dir, ".gitignore"), "utf8")).toContain("page/live.js")

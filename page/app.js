@@ -24,6 +24,7 @@
     showDone: opts.showDone !== false,
     hideAfter: M.HIDE[opts.hideAfter] !== undefined ? opts.hideAfter : M.DEFAULTS.hideAfter,
     text: opts.text !== false,
+    remote: opts.remote === true,
     approvalAfterSec: Number(opts.approvalAfterSec) > 0 ? Number(opts.approvalAfterSec) : M.DEFAULTS.approvalAfterSec,
   }
   const state = { snap: null, loaded: false, list: [], open: "", hover: "", showText: true }
@@ -349,7 +350,9 @@
   }
 
   function emptyText() {
-    return state.loaded && state.snap ? t().empty : t().noFile
+    if (!state.loaded || !state.snap) return t().noFile
+    const dropped = Number(state.snap.dropped) || 0
+    return !view.remote && dropped > 0 ? t().empty + " " + t().emptyRemote : t().empty
   }
 
   // ---- everything ------------------------------------------------------
@@ -408,7 +411,7 @@
   let saved = JSON.stringify(opts)
   const textOn = () => $("optText").checked
   function wanted() {
-    return { ...opts, mode: view.mode, dim: view.dim, demo: view.demo, showDone: view.showDone, hideAfter: view.hideAfter, text: textOn() }
+    return { ...opts, mode: view.mode, dim: view.dim, demo: view.demo, showDone: view.showDone, hideAfter: view.hideAfter, text: textOn(), remote: $("optRemote").checked }
   }
   function save() {
     clearTimeout(saving)
@@ -447,10 +450,12 @@
   $("optDemo").checked = view.demo
   $("optDone").checked = view.showDone
   $("optText").checked = opts.text !== false
+  $("optRemote").checked = opts.remote === true
   select("optHide", "hide", view.hideAfter)
   $("optDemo").addEventListener("change", (e) => { view.demo = e.target.checked; state.demoSnap = null; refresh(); save() })
   $("optDone").addEventListener("change", (e) => { view.showDone = e.target.checked; refresh(); save() })
   $("optText").addEventListener("change", (e) => { view.text = e.target.checked; refresh(); save() })
+  $("optRemote").addEventListener("change", (e) => { view.remote = e.target.checked; refresh(); save() })
   $("optHide").addEventListener("click", (e) => {
     const h = e.target.closest("button")?.dataset.hide
     if (!h) return
