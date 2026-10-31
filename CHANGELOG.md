@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.2.0 · 2026-10-31
+
+功能对齐 [whatsmyagentdoing](https://github.com/Charonyuu/whatsmyagentdoing)，并加入真正的 3D 与独立运行方式。
+
+### Added
+
+- Real WebGL 3D office (`page/scene3d.js`, bundled three.js r169): orthographic orbit camera, wheel zoom, lighting, shadows, six procedural scenes (office, station, cafe, castle, pirate, graveyard), animated workers and DOM name-tag anchors.
+- ISO canvas view between 2D and 3D: five activity venues (reading, arcade, huddle, ping-pong, coffee), an office cat, day/night window light, drag-pan and wheel/pinch zoom.
+- Copilot CLI, Kimi Code and Grok Build readers, Claude Code subagents, OMP profiles, and parent/subagent metadata.
+- Workbench: Needs you → Working → Finished groups, agent-mix / subagent / idle filters, grouped side rail.
+- Today panel: turns, tokens, top folders and context bars (60% warn, 85% full).
+- Recent conversation in the agent panel (last 8 messages), with privacy redaction.
+- No-progress badges at 8 minutes thinking and 10 minutes running; completed agents wander the venues and sofa.
+- In-page toast for new waiting/error sessions; tab-title need-you count.
+- Nine-language UI: English, 简体中文, 繁體中文, 日本語, 한국어, Español, Français, Deutsch, Português, with prompt-script, theme and browser fallback.
+- Standalone `bin/agent-office.mjs` (`--json`, `--private`, `--hours`, local page server) and `SKILL.md` for Claude Code / Codex skills.
+
+### Fixed
+
+- Inactive canvas is hidden explicitly, so switching between 3D, ISO and 2D never leaves the previous renderer visible.
+- The grouped rail and menus no longer sit under the agent detail panel.
+- The security test distinguishes the vendored three.js bundle from our own page code; `scene3d.js` still has no network calls.
+
 ## 0.1.0 · 2026-10-29
 
 首个公开发布版本。First public release.
