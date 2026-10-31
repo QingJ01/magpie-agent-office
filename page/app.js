@@ -38,6 +38,7 @@
     showIdle: opts.showIdle !== false,
     agents: Array.isArray(opts.agents) ? opts.agents.filter((x) => typeof x === "string") : [],
     side: opts.side !== false,
+    cleared: opts.cleared && typeof opts.cleared === "object" && !Array.isArray(opts.cleared) ? { ...opts.cleared } : {},
   }
   let manualLang = opts.lang === "auto" || M.LANG_NAMES[opts.lang] ? opts.lang : "auto"
   const state = {
@@ -309,7 +310,10 @@
     P.copy = el("button", "pc")
     P.copy.type = "button"
     P.copy.addEventListener("click", (e) => { e.stopPropagation(); showCommand(P.copy.dataset.value, P.copy) })
-    foot.append(P.meta, P.copy)
+    P.clear = el("button", "pc")
+    P.clear.type = "button"
+    P.clear.addEventListener("click", (e) => { e.stopPropagation(); clearAgent(P.clear.dataset.key) })
+    foot.append(P.meta, P.copy, P.clear)
     P.src = el("div", "psrc")
     panel.replaceChildren(head, P.title, P.status, P.query, P.step, P.err, P.reply, P.ctx, P.convoHead, P.msgs, foot, P.src)
   })()
@@ -378,7 +382,27 @@
       P.copy.dataset.label = a.resume ? w.copyResume : w.copySession
       P.copy.textContent = P.copy.dataset.label
     }
+    P.clear.hidden = !M.clearable(a.status)
+    P.clear.dataset.key = a.key
+    setText(P.clear, w.clear)
+    P.clear.title = w.clearTip
     setText(P.src, a.source === "files" ? w.fromFiles : w.via)
+  }
+
+  // out of the office until its session moves again; kept in options, only
+  // for sessions live.js still has
+  function clearAgent(key) {
+    const a = state.list.find((x) => x.key === key)
+    if (!a || !M.clearable(a.status)) return
+    const now = Date.now()
+    const known = new Set((snapshot(now)?.sessions || []).map((s) => s?.key))
+    const next = {}
+    for (const [k, at] of Object.entries(view.cleared)) if (known.has(k)) next[k] = at
+    next[key] = a.at
+    view.cleared = next
+    close()
+    refresh()
+    save()
   }
 
   function open(key) {
@@ -750,6 +774,7 @@
       ...opts, mode: view.mode, dim: view.dim, demo: view.demo, showDone: view.showDone, hideAfter: view.hideAfter,
       text: textOn(), agents: view.agents.slice(), showSub: view.showSub, showIdle: view.showIdle,
       side: view.side, lang: manualLang, scene: view.scene, quality: view.quality,
+      cleared: { ...view.cleared },
     }
   }
   function save() {

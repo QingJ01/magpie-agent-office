@@ -38,7 +38,7 @@
       summaryNote: "Totals come from the usage records in each agent's own session files.",
       context: "Context", recent: "Recent conversation", noMessages: "No messages yet.",
       privateNote: "Text is off, so the conversation is hidden.", loadingMsgs: "Loading…",
-      subAgent: "subagent", panel: "Panel", dismiss: "Dismiss",
+      subAgent: "subagent", panel: "Panel", dismiss: "Dismiss", clear: "Clear", clearTip: "Remove from the office until its session moves",
       unitS: "s", unitM: "m", unitH: "h",
     },
     "zh-CN": {
@@ -67,7 +67,7 @@
       summaryNote: "统计来自各个 Agent 自己会话文件里的用量记录。",
       context: "上下文", recent: "最近对话", noMessages: "还没有消息。",
       privateNote: "已关闭文本，对话已隐藏。", loadingMsgs: "加载中……",
-      subAgent: "子 Agent", panel: "侧栏", dismiss: "关闭",
+      subAgent: "子 Agent", panel: "侧栏", dismiss: "关闭", clear: "清除", clearTip: "从办公室移除，直到会话有新动静",
       unitS: "秒", unitM: "分", unitH: "小时",
     },
     "zh-TW": {
@@ -96,7 +96,7 @@
       summaryNote: "統計來自各個 Agent 自己工作階段檔案裡的用量記錄。",
       context: "上下文", recent: "最近對話", noMessages: "還沒有訊息。",
       privateNote: "已關閉文字，對話已隱藏。", loadingMsgs: "載入中……",
-      subAgent: "子 Agent", panel: "側欄", dismiss: "關閉",
+      subAgent: "子 Agent", panel: "側欄", dismiss: "關閉", clear: "清除", clearTip: "從辦公室移除，直到工作階段有新動靜",
       unitS: "秒", unitM: "分", unitH: "小時",
     },
     ja: {
@@ -125,7 +125,7 @@
       summaryNote: "合計は各エージェントのセッションファイルの使用量記録から算出します。",
       context: "コンテキスト", recent: "最近の会話", noMessages: "まだメッセージはありません。",
       privateNote: "テキストオフのため、会話は非表示です。", loadingMsgs: "読み込み中…",
-      subAgent: "サブエージェント", panel: "パネル", dismiss: "閉じる",
+      subAgent: "サブエージェント", panel: "パネル", dismiss: "閉じる", clear: "消去", clearTip: "セッションが動くまでオフィスから消す",
       unitS: "秒", unitM: "分", unitH: "時間",
     },
     ko: {
@@ -154,7 +154,7 @@
       summaryNote: "합계는 각 에이전트 세션 파일의 사용량 기록에서 계산합니다.",
       context: "컨텍스트", recent: "최근 대화", noMessages: "아직 메시지가 없습니다.",
       privateNote: "텍스트가 꺼져 있어 대화가 숨겨집니다.", loadingMsgs: "불러오는 중…",
-      subAgent: "하위 에이전트", panel: "패널", dismiss: "닫기",
+      subAgent: "하위 에이전트", panel: "패널", dismiss: "닫기", clear: "지우기", clearTip: "세션이 움직일 때까지 사무실에서 숨기기",
       unitS: "초", unitM: "분", unitH: "시간",
     },
     es: {
@@ -183,7 +183,7 @@
       summaryNote: "Los totales vienen de los registros de uso de las sesiones de cada agente.",
       context: "Contexto", recent: "Conversación reciente", noMessages: "Aún no hay mensajes.",
       privateNote: "El texto está desactivado, así que la conversación está oculta.", loadingMsgs: "Cargando…",
-      subAgent: "subagente", panel: "Panel", dismiss: "Cerrar",
+      subAgent: "subagente", panel: "Panel", dismiss: "Cerrar", clear: "Quitar", clearTip: "Quitarlo de la oficina hasta que la sesión se mueva",
       unitS: "s", unitM: "min", unitH: "h",
     },
     fr: {
@@ -212,7 +212,7 @@
       summaryNote: "Les totaux viennent des relevés d'usage des fichiers de session de chaque agent.",
       context: "Contexte", recent: "Conversation récente", noMessages: "Pas encore de messages.",
       privateNote: "Le texte est désactivé, la conversation est masquée.", loadingMsgs: "Chargement…",
-      subAgent: "sous-agent", panel: "Panneau", dismiss: "Fermer",
+      subAgent: "sous-agent", panel: "Panneau", dismiss: "Fermer", clear: "Retirer", clearTip: "Retirer du bureau jusqu'au prochain mouvement de la session",
       unitS: "s", unitM: "min", unitH: "h",
     },
     de: {
@@ -241,7 +241,7 @@
       summaryNote: "Die Summen stammen aus den Nutzungsdaten der Sitzungsdateien der Agenten.",
       context: "Kontext", recent: "Letzte Unterhaltung", noMessages: "Noch keine Nachrichten.",
       privateNote: "Text ist aus, daher ist die Unterhaltung verborgen.", loadingMsgs: "Lädt…",
-      subAgent: "Subagent", panel: "Seitenleiste", dismiss: "Schließen",
+      subAgent: "Subagent", panel: "Seitenleiste", dismiss: "Schließen", clear: "Entfernen", clearTip: "Aus dem Büro entfernen, bis sich die Sitzung bewegt",
       unitS: "s", unitM: "min", unitH: "Std",
     },
     pt: {
@@ -270,7 +270,7 @@
       summaryNote: "Os totais vêm dos registros de uso das sessões de cada agente.",
       context: "Contexto", recent: "Conversa recente", noMessages: "Ainda não há mensagens.",
       privateNote: "O texto está desativado, então a conversa fica oculta.", loadingMsgs: "Carregando…",
-      subAgent: "subagente", panel: "Painel", dismiss: "Fechar",
+      subAgent: "subagente", panel: "Painel", dismiss: "Fechar", clear: "Remover", clearTip: "Remover do escritório até a sessão se mover",
       unitS: "s", unitM: "min", unitH: "h",
     },
   }
@@ -287,7 +287,7 @@
   const DEFAULTS = {
     mode: "office", dim: "3d", scene: "office", quality: "medium", demo: false, showDone: true,
     hideAfter: "6h", approvalAfterSec: 90, agents: [], showSub: true, showIdle: true, side: true,
-    lang: "auto", progress: true, text: true,
+    lang: "auto", progress: true, text: true, cleared: {},
   }
   // a turn whose file hasn't moved this long has made no progress
   const NOPROGRESS_MS = 8 * 60e3
@@ -404,6 +404,10 @@
   }
   function status(s, now, opts) { return state(s, now, opts).status }
 
+  // what the user may clear: an agent not at work. A stuck one (error), a
+  // stopped or finished one, and one waiting on a process that may be gone.
+  function clearable(st) { return st === "done" || st === "error" || st === "waiting" }
+
   function ago(ms, lang) {
     const t = text(lang)
     const s = Math.max(0, Math.round(ms / 1000))
@@ -487,6 +491,7 @@
     const o = { ...DEFAULTS, ...opts }
     const hide = HIDE[o.hideAfter] ?? HIDE["6h"]
     const picked = Array.isArray(o.agents) ? o.agents.filter((x) => typeof x === "string") : []
+    const cleared = o.cleared && typeof o.cleared === "object" ? o.cleared : {}
     const out = []
     for (const s of Array.isArray(snap?.sessions) ? snap.sessions : []) {
       if (!s || typeof s.key !== "string") continue
@@ -498,6 +503,8 @@
       const quiet = now - at
       if ((st === "done" || st === "error") && quiet > hide) continue
       if (st === "done" && !o.showDone) continue
+      const c = Number(cleared[s.key])
+      if (c && at <= c && clearable(st)) continue
       const idle = st === "done" && quiet > IDLE_MS
       if (idle && o.showIdle === false) continue
       const b = brand(s.agent)
@@ -671,7 +678,7 @@
   }
 
   globalThis.AgentOfficeModel = {
-    TEXT, LANGS, LANG_NAMES, STATUSES, COLORS, DEFAULTS, HIDE, GROUPS,
+    TEXT, LANGS, LANG_NAMES, STATUSES, COLORS, DEFAULTS, HIDE, GROUPS, clearable,
     NOPROGRESS_MS, STUCK_MS, IDLE_MS,
     text, normalizeLang, scriptLang, detectLang, sample, fill, hash, brand,
     state, status, ago, duration, resume,

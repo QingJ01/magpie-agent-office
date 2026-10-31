@@ -14,6 +14,8 @@
 - Recent conversation in the agent panel (last 8 messages), with privacy redaction.
 - No-progress badges at 8 minutes thinking and 10 minutes running; completed agents wander the venues and sofa.
 - In-page toast for new waiting/error sessions; tab-title need-you count.
+- Claude process-liveness check: a session mid-turn with no live process (for example `claude -p` killed from another agent) is **stopped**, not stuck.
+- **Clear** removes a finished/stopped/waiting/stuck agent until its session moves again.
 - Nine-language UI: English, 简体中文, 繁體中文, 日本語, 한국어, Español, Français, Deutsch, Português, with prompt-script, theme and browser fallback.
 - Standalone `bin/agent-office.mjs` (`--json`, `--private`, `--hours`, local page server) and `SKILL.md` for Claude Code / Codex skills.
 

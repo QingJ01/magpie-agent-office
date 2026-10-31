@@ -2,7 +2,7 @@
 
 [![Latest release](https://img.shields.io/github/v/release/QingJ01/magpie-agent-office)](https://github.com/QingJ01/magpie-agent-office/releases)
 [![magpie ≥ 0.1.1318](https://img.shields.io/badge/magpie-%E2%89%A5%200.1.1318-4f46e5)](https://usemagpie.ai)
-[![Tests](https://img.shields.io/badge/tests-86%20passing-22a35a)](#test)
+[![Tests](https://img.shields.io/badge/tests-96%20passing-22a35a)](#test)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 **一个住在 magpie 窗口里的实时 Agent 办公室。** 直接读取各 Agent 自己的会话记录，把正在思考、执行工具、等待批准或已经完成的工作，变成真 3D 办公室里的小人；也可以切到等距画布、俯视 2D 或分组列表。
@@ -53,7 +53,7 @@ bun bin/agent-office.mjs --json   # 一次性快照，适合让 Agent 在聊天�
 
 | Agent | 文件 |
 |---|---|
-| Claude Code | `~/.claude/projects/*/*.jsonl`（以及 `subagents/*.jsonl`） |
+| Claude Code | `~/.claude/projects/*/*.jsonl`（以及 `subagents/*.jsonl`；`sessions/*.json` 只用来判断进程是否还在） |
 | Codex | `~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl`（+ `session_index.jsonl`） |
 | Copilot CLI | `~/.copilot/session-state/*/events.jsonl` |
 | Kimi Code | `~/.kimi-code/sessions/*/*/agents/*/wire.jsonl` |
@@ -132,6 +132,7 @@ bun bin/agent-office.mjs --json   # 一次性快照，适合让 Agent 在聊天�
 | `showSub` / `showIdle` | 显示子 Agent / 摸鱼 Agent |
 | `side` | 显示分组侧栏 |
 | `lang` | `auto` 或九种语言代码 |
+| `cleared` | { 会话 key: 时间 }：被「清除」的会话，文件再动就回来 |
 | `remote` | 网关部分也记录其他电脑的请求 |
 | `approvalAfterSec` | 只有网关记录时，工具运行多久算等你批准（90） |
 
@@ -169,7 +170,7 @@ bun bin/agent-office.mjs [--port 4545] [--hours 48] [--private] [--json] [--no-o
 bun test
 ```
 
-86 项测试覆盖会话解析（含新客户端）、隐私、路径与朝向、沙发合成、2D 活动点、相机、昼夜、3D API、CLI 与独立服务。浏览器检查在 magpie 0.1.1318 的窗口和独立页面里做过 3D、ISO、2D、列表、场景切换、今日面板和隐私开关。
+96 项测试覆盖会话解析（含新客户端）、隐私、路径与朝向、沙发合成、2D 活动点、相机、昼夜、3D API、CLI 与独立服务。浏览器检查在 magpie 0.1.1318 的窗口和独立页面里做过 3D、ISO、2D、列表、场景切换、今日面板和隐私开关。
 
 ## Prior art
 
