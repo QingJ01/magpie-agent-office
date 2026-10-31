@@ -79,7 +79,7 @@
       "agents": [],
       "showSub": true,
       "showIdle": true,
-      "side": true,
+      "side": false,
       "lang": "auto"
     }
   },
