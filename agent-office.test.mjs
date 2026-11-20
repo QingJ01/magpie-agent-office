@@ -136,6 +136,22 @@ test("Codex: a running tool, an approval, done, aborted; its own prompts only", 
   expect(readCodex(F.codexAborted).phase).toBe("aborted")
 })
 
+test("Codex: spawned threads respect the subagent filter", () => {
+  const [metaLine, ...events] = F.codexRunning.split("\n")
+  const meta = JSON.parse(metaLine)
+  meta.payload.source = "vscode"
+  const parent = readCodex([JSON.stringify(meta), ...events].join("\n"))
+  meta.payload.id = "child"
+  meta.payload.source = { subagent: { thread_spawn: { parent_thread_id: parent.id } } }
+  const child = readCodex([JSON.stringify(meta), ...events].join("\n"))
+
+  expect(parent).toMatchObject({ subagent: false, parent: "" })
+  expect(child).toMatchObject({ subagent: true, parent: parent.id })
+  const sessions = [parent, child].map((session) => ({ ...session, key: session.id, source: "files" }))
+  expect(M.agents({ sessions }, child.updated, { showSub: true }).map((agent) => agent.key).sort()).toEqual([parent.id, child.id].sort())
+  expect(M.agents({ sessions }, child.updated, { showSub: false }).map((agent) => agent.key)).toEqual([parent.id])
+})
+
 test("DeepSeek Harness: an approval asked, then an error", () => {
   const r = readDsh(F.dshApproval)
   expect(r).toMatchObject({ id: "session-d1", phase: "approval", title: "Deploy the site", model: "deepseek-flash", query: "deploy to cloudflare", project: "site" })
